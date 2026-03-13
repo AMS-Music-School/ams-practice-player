@@ -21,6 +21,7 @@
             --text-main: #e0e0e0;
             --text-dim: #999999;
             --border-color: #333333;
+            --sidebar-width: 280px;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -32,11 +33,67 @@
             padding: 0; 
             margin: 0; 
             overscroll-behavior-y: contain;
+            display: flex; /* サイドバー配置用 */
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ライブラリサイドバーのデザイン */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: #181818;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .sidebar-header h3 { 
+            margin: 0; font-size: 0.8rem; letter-spacing: 3px; color: var(--primary-color); text-transform: uppercase;
+        }
+        .library-list {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .library-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: var(--panel-bg);
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: 0.2s;
+        }
+        .library-item:hover { border-color: var(--primary-color); }
+        .library-item.active { border-color: var(--primary-color); background: rgba(212, 163, 115, 0.1); }
+        .library-item .song-info {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.8rem;
+            flex-grow: 1;
+        }
+        .delete-btn { color: #666; font-size: 18px !important; margin-left: 10px; }
+        .delete-btn:hover { color: #ff5555; }
+
+        /* メインコンテンツエリア */
+        .main-scroll-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .container { 
             width: 100%; 
-            /* PCで画面いっぱいに表示するため制限を解除し、左右に少し余裕を持たせる */
             max-width: 1200px; 
             margin: 0 auto; 
             background: var(--bg-dark); 
@@ -63,7 +120,7 @@
             padding: 4px; 
             border-radius: 12px; 
             border: 1px solid var(--border-color);
-            max-width: 600px; /* タブは広がりすぎないよう中央寄せに保持 */
+            max-width: 600px; 
             margin-left: auto;
             margin-right: auto;
         }
@@ -266,7 +323,7 @@
         #ytPlayerContainer { 
             position: relative;
             width: 100%;
-            max-width: 900px; /* 動画が巨大になりすぎないよう制限（お好みで調整） */
+            max-width: 900px; 
             margin: 0 auto;
             aspect-ratio: 16 / 9; 
             border-radius: 12px; 
@@ -311,10 +368,29 @@
             color: #121212;
             font-weight: bold;
         }
+
+        /* モバイル対応：サイドバーを上部に配置 */
+        @media (max-width: 768px) {
+            body { flex-direction: column; overflow: auto; height: auto; }
+            .sidebar { width: 100%; height: 200px; border-right: none; border-bottom: 1px solid var(--border-color); }
+            .main-scroll-area { height: auto; overflow: visible; }
+        }
     </style>
 </head>
 <body>
 
+<div class="sidebar">
+    <div class="sidebar-header">
+        <h3>Library</h3>
+    </div>
+    <div class="library-list" id="libraryList">
+        </div>
+    <div style="padding: 10px; border-top: 1px solid var(--border-color); font-size: 9px; color: var(--text-dim); text-align: center;">
+        Data is stored in your browser.
+    </div>
+</div>
+
+<div class="main-scroll-area">
 <div class="container">
     <div class="title-area"><h2>AMS Practice Player</h2></div>
 
@@ -375,7 +451,8 @@
         <div class="guide-box">
             <b>【Audio File Mode】操作ガイド</b>
             <ul>
-                <li><b>ファイル選択:</b> デバイス内の音楽ファイルを選択してください。BPMと無音部分を自動解析します。</li>
+                <li><b>ファイル選択:</b> デバイス内の音楽ファイルを選択してください。自動的にライブラリへ保存されます。</li>
+                <li><b>楽曲ライブラリ:</b> 読み込んだ曲は画面端の「Library」リストに蓄積されます。次回アクセス時もリストをクリックするだけで再生可能です。</li>
                 <li><b>BPM連動:</b> BPM数値を手入力すると速度が変わります。速度を変えるとBPMが計算されます。</li>
                 <li><b>ループ設定:</b> 波形をドラッグして範囲を選択すると、その区間が繰り返し再生されます。</li>
                 <li><b>ピッチ調整:</b> スピードを変えずに半音単位（±6）で変更可能です。</li>
@@ -423,10 +500,90 @@
         </div>
     </div>
 </div>
+</div>
 
 <script>
     /* ------------------------------------------------------------
-        JavaScript ロジック
+        楽曲ライブラリ (IndexedDB) ロジック
+    ------------------------------------------------------------ */
+    const DB_NAME = "AMSPracticePlayerDB";
+    const STORE_NAME = "library";
+    let db;
+
+    // DB初期化
+    const dbReq = indexedDB.open(DB_NAME, 1);
+    dbReq.onupgradeneeded = e => {
+        e.target.result.createObjectStore(STORE_NAME, { keyPath: "id", autoIncrement: true });
+    };
+    dbReq.onsuccess = e => {
+        db = e.target.result;
+        refreshLibraryList();
+    };
+
+    function saveToLibrary(file) {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const transaction = db.transaction([STORE_NAME], "readwrite");
+            const store = transaction.objectStore(STORE_NAME);
+            const songData = {
+                fileName: file.name,
+                data: e.target.result, // DataURL
+                timestamp: Date.now()
+            };
+            store.add(songData);
+            transaction.oncomplete = () => refreshLibraryList();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function refreshLibraryList() {
+        const listEl = document.getElementById('libraryList');
+        listEl.innerHTML = "";
+        const transaction = db.transaction([STORE_NAME], "readonly");
+        const store = transaction.objectStore(STORE_NAME);
+        store.openCursor().onsuccess = e => {
+            const cursor = e.target.result;
+            if (cursor) {
+                const song = cursor.value;
+                const item = document.createElement('div');
+                item.className = 'library-item';
+                item.innerHTML = `
+                    <div class="song-info" onclick="loadFromLibrary(${song.id}, this)">${song.fileName}</div>
+                    <span class="material-icons delete-btn" onclick="deleteFromLibrary(${song.id})">delete</span>
+                `;
+                listEl.appendChild(item);
+                cursor.continue();
+            }
+        };
+    }
+
+    async function loadFromLibrary(id, element) {
+        const transaction = db.transaction([STORE_NAME], "readonly");
+        const store = transaction.objectStore(STORE_NAME);
+        store.get(id).onsuccess = async e => {
+            const song = e.target.result;
+            switchMode('file');
+            
+            // UI表示切り替え
+            document.querySelectorAll('.library-item').forEach(el => el.classList.remove('active'));
+            element.parentElement.classList.add('active');
+
+            // DataURLからBlobに変換して解析
+            const blob = await (await fetch(song.data)).blob();
+            analyzeAudio(blob);
+            wavesurfer.load(song.data);
+        };
+    }
+
+    function deleteFromLibrary(id) {
+        if (!confirm("ライブラリからこの楽曲を削除しますか？")) return;
+        const transaction = db.transaction([STORE_NAME], "readwrite");
+        transaction.objectStore(STORE_NAME).delete(id);
+        transaction.oncomplete = () => refreshLibraryList();
+    }
+
+    /* ------------------------------------------------------------
+        メインプレイヤーロジック (既存ロジック維持)
     ------------------------------------------------------------ */
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
@@ -564,7 +721,15 @@
         wavesurfer.registerPlugin(WaveSurfer.Timeline.create({ container: '#timeline' }));
         
         wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
-        document.getElementById('audioFile').onchange = e => { if(e.target.files[0]) { analyzeAudio(e.target.files[0]); wavesurfer.load(URL.createObjectURL(e.target.files[0])); } };
+        
+        document.getElementById('audioFile').onchange = e => { 
+            const file = e.target.files[0];
+            if(file) { 
+                saveToLibrary(file); // ライブラリ保存呼び出し
+                analyzeAudio(file); 
+                wavesurfer.load(URL.createObjectURL(file)); 
+            } 
+        };
         
         wavesurfer.on('ready', () => { 
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
