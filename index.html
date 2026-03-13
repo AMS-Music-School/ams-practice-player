@@ -36,7 +36,7 @@
             padding-top: var(--header-height); /* メニューバーの高さ分確保 */
         }
 
-        /* --- メニューバー --- */
+        /* --- 新設：メニューバー --- */
         header {
             position: fixed;
             top: 0;
@@ -80,8 +80,6 @@
             transition: right 0.3s ease;
             box-shadow: -5px 0 15px rgba(0,0,0,0.5);
             padding: 20px;
-            display: flex;
-            flex-direction: column;
         }
 
         .side-menu.open { right: 0; }
@@ -130,23 +128,6 @@
         }
 
         .menu-item:hover { background: #333; }
-
-        /* 履歴リスト用スタイル */
-        #historyList {
-            overflow-y: auto;
-            flex-grow: 1;
-            margin-top: 10px;
-        }
-        .history-item {
-            font-size: 0.85em;
-            color: var(--text-dim);
-            padding: 10px;
-            border-bottom: 1px solid #2a2a2a;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .history-item:hover { color: var(--primary-color); }
 
         /* ガイド用モーダル */
         .modal {
@@ -368,6 +349,7 @@
             cursor: pointer;
         }
 
+        /* 操作ガイド用の共通ボックス（モーダル内でも使用） */
         .guide-box-inner { 
             font-size: 0.85em; 
             color: var(--text-dim); 
@@ -457,13 +439,6 @@
     <div class="menu-item" onclick="showGuide('yt')">
         <span class="material-icons">smart_display</span>
         YouTubeモード ガイド
-    </div>
-
-    <span class="menu-section-title" style="margin-top:20px;">Recent History</span>
-    <div id="historyList">
-        </div>
-    <div class="menu-item" onclick="clearHistory()" style="font-size: 0.75em; opacity: 0.6; justify-content: center;">
-        履歴をクリア
     </div>
 </div>
 
@@ -589,7 +564,6 @@
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
         document.getElementById('menuOverlay').style.display = isOpen ? 'block' : 'none';
-        if(isOpen) updateHistoryUI(); // メニューを開いた時に履歴を更新
     }
 
     function showGuide(type) {
@@ -607,59 +581,7 @@
     }
 
     /* ------------------------------------------------------------
-        履歴管理ロジック (追加分)
-    ------------------------------------------------------------ */
-    function saveToHistory(name, type) {
-        let history = JSON.parse(localStorage.getItem('ams_player_history') || '[]');
-        // 重複削除して先頭に追加
-        history = history.filter(item => item.name !== name);
-        history.unshift({ name: name, type: type, date: new Date().getTime() });
-        // 最大10件
-        if (history.length > 10) history.pop();
-        localStorage.setItem('ams_player_history', JSON.stringify(history));
-    }
-
-    function updateHistoryUI() {
-        const list = document.getElementById('historyList');
-        const history = JSON.parse(localStorage.getItem('ams_player_history') || '[]');
-        list.innerHTML = '';
-        
-        if (history.length === 0) {
-            list.innerHTML = '<div class="history-item">No history yet</div>';
-            return;
-        }
-
-        history.forEach(item => {
-            const div = document.createElement('div');
-            div.className = 'menu-item history-item';
-            const icon = item.type === 'yt' ? 'smart_display' : 'audiotrack';
-            div.innerHTML = `<span class="material-icons" style="font-size:18px;">${icon}</span> ${item.name}`;
-            div.onclick = () => {
-                if(item.type === 'yt') {
-                    switchMode('yt');
-                    document.getElementById('ytUrl').value = item.name;
-                    loadYouTube();
-                } else {
-                    // セキュリティ上、パスから直接ファイルは読み込めないため、
-                    // ファイル選択を促す挙動にする
-                    switchMode('file');
-                    alert('ブラウザのセキュリティ制限により、履歴からファイルを直接読み込むことはできません。再度ファイルを選択してください。');
-                }
-                toggleMenu(false);
-            };
-            list.appendChild(div);
-        });
-    }
-
-    function clearHistory() {
-        if(confirm('履歴をクリアしますか？')) {
-            localStorage.removeItem('ams_player_history');
-            updateHistoryUI();
-        }
-    }
-
-    /* ------------------------------------------------------------
-        メインロジック
+        メインロジック（提供コードを忠実に再現）
     ------------------------------------------------------------ */
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
@@ -678,7 +600,6 @@
 
     async function analyzeAudio(file) {
         document.getElementById('loadStatus').innerText = "ANALYZING...";
-        saveToHistory(file.name, 'file'); // 履歴に保存
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
         const arrayBuffer = await file.arrayBuffer();
         const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
@@ -761,7 +682,6 @@
         const url = document.getElementById('ytUrl').value;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
         if (videoId) {
-            saveToHistory(url, 'yt'); // 履歴に保存
             if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
             else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onStateChange': onPlayerStateChange } });
         }
@@ -804,11 +724,6 @@
         wavesurfer.on('ready', () => { 
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
-        });
-
-        // 再生時間の更新
-        wavesurfer.on('timeupdate', (currentTime) => {
-            document.getElementById('currentTime').innerText = fmt(currentTime);
         });
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
@@ -877,18 +792,18 @@
         wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
         wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
         
-        // 初期UI更新
-        updateHistoryUI();
+        let lastJump = 0;
+        wavesurfer.on('timeupdate', t => {
+            document.getElementById('currentTime').innerText = fmt(t);
+            const r = wsRegions.getRegions()[0];
+            if(r && t >= r.end && Date.now() - lastJump > 200) { wavesurfer.setTime(r.start); applySpeedUp(); lastJump = Date.now(); }
+        });
+
+        window.resetSetting = (id, val) => { document.getElementById(id).value = val; applySettings(); };
     }
 
-    window.resetSetting = (type, val) => {
-        document.getElementById(type).value = val;
-        applySettings();
-    };
-
-    // 起動
+    window.addEventListener('keydown', (e) => { if (e.code === 'Space' && currentMode === 'file') { e.preventDefault(); document.getElementById('playBtn').click(); } });
     startApp();
 </script>
-
 </body>
 </html>
