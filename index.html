@@ -258,11 +258,24 @@
             display: none; pointer-events: none; text-shadow: 0 0 30px rgba(0,0,0,0.9);
         }
 
+        /* YouTubeプレイヤーをレスポンシブに修正 */
         #ytPlayerContainer { 
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16 / 9; /* アスペクト比を16:9に固定 */
             border-radius: 12px; 
             overflow: hidden; 
             border: 1px solid var(--border-color);
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #000;
+        }
+        /* IFrameをコンテナ一杯に広げる */
+        #ytPlayerContainer iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
         }
 
         .loop-btn-main { 
@@ -407,7 +420,7 @@
 
 <script>
     /* ------------------------------------------------------------
-       JavaScript ロジック
+        JavaScript ロジック
     ------------------------------------------------------------ */
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
@@ -509,7 +522,7 @@
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
         if (videoId) {
             if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
-            else ytPlayer = new YT.Player('player', { height: '360', width: '640', videoId: videoId, events: { 'onStateChange': onPlayerStateChange } });
+            else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onStateChange': onPlayerStateChange } });
         }
     }
     function onPlayerStateChange(e) {
