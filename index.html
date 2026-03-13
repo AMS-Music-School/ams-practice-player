@@ -36,10 +36,11 @@
 
         .container { 
             width: 100%; 
-            max-width: 600px; 
+            /* PCで画面いっぱいに表示するため制限を解除し、左右に少し余裕を持たせる */
+            max-width: 1200px; 
             margin: 0 auto; 
             background: var(--bg-dark); 
-            padding: env(safe-area-inset-top) 15px 40px 15px;
+            padding: env(safe-area-inset-top) 20px 40px 20px;
         }
         
         .title-area { text-align: center; margin-bottom: 25px; padding-top: 20px; }
@@ -62,6 +63,9 @@
             padding: 4px; 
             border-radius: 12px; 
             border: 1px solid var(--border-color);
+            max-width: 600px; /* タブは広がりすぎないよう中央寄せに保持 */
+            margin-left: auto;
+            margin-right: auto;
         }
         .tab-btn { 
             background: transparent; 
@@ -262,7 +266,9 @@
         #ytPlayerContainer { 
             position: relative;
             width: 100%;
-            aspect-ratio: 16 / 9; /* アスペクト比を16:9に固定 */
+            max-width: 900px; /* 動画が巨大になりすぎないよう制限（お好みで調整） */
+            margin: 0 auto;
+            aspect-ratio: 16 / 9; 
             border-radius: 12px; 
             overflow: hidden; 
             border: 1px solid var(--border-color);
@@ -378,7 +384,7 @@
     </div>
 
     <div id="yt-section" class="content-section">
-        <div class="yt-input-area" style="display:flex; gap:10px; margin-bottom:20px; background:var(--panel-bg); padding:15px; border-radius:12px; border: 1px solid var(--border-color);">
+        <div class="yt-input-area" style="display:flex; gap:10px; margin-bottom:20px; background:var(--panel-bg); padding:15px; border-radius:12px; border: 1px solid var(--border-color); max-width:600px; margin-left:auto; margin-right:auto;">
             <input type="text" id="ytUrl" placeholder="YouTube URL..." style="flex-grow:1; padding:12px; border:1px solid var(--border-color); background:#000; color:#fff; border-radius:8px;">
             <button class="tab-btn active" style="border-radius:8px; flex:0; min-width:80px;" onclick="loadYouTube()">LOAD</button>
         </div>
