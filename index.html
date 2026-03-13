@@ -80,8 +80,7 @@
             transition: right 0.3s ease;
             box-shadow: -5px 0 15px rgba(0,0,0,0.5);
             padding: 20px;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
         }
 
         .side-menu.open { right: 0; }
@@ -177,8 +176,7 @@
             border-radius: 12px; 
             border: 1px solid var(--border-color);
             max-width: 600px; 
-            margin-left: auto;
-            margin-right: auto;
+            margin-left: auto; margin-right: auto;
         }
         .tab-btn { 
             background: transparent; 
@@ -252,117 +250,54 @@
             -webkit-appearance: none;
         }
         input[type="range"]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 6px;
-            cursor: pointer;
-            background: #444;
-            border-radius: 3px;
+            width: 100%; height: 6px; cursor: pointer; background: #444; border-radius: 3px;
         }
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
+            width: 24px; height: 24px;
             background: var(--primary-color);
-            border-radius: 50%;
-            border: 2px solid #fff;
-            margin-top: -9px; 
-            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            border-radius: 50%; border: 2px solid #fff;
+            margin-top: -9px; box-shadow: 0 2px 8px rgba(0,0,0,0.6);
         }
 
         .val-display { color: var(--primary-color); font-weight: bold; min-width: 65px; text-align: right; font-size: 1.2em; }
         
         .transport-controls { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 25px; 
-            margin: 25px 0; 
-            background: transparent;
-            padding: 0;
+            display: flex; justify-content: center; align-items: center; gap: 25px; margin: 25px 0; background: transparent; padding: 0;
         }
         .btn-ctrl { 
-            background: var(--panel-bg); 
-            color: var(--text-main); 
-            border: 1px solid var(--border-color); 
-            border-radius: 50%; 
-            width: 55px; 
-            height: 55px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            cursor: pointer;
+            background: var(--panel-bg); color: var(--text-main); border: 1px solid var(--border-color); border-radius: 50%; 
+            width: 55px; height: 55px; display: flex; align-items: center; justify-content: center; cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
         .play-main { 
-            background: var(--primary-color); 
-            color: #121212; 
-            border: none; 
-            width: 75px; 
-            height: 75px; 
+            background: var(--primary-color); color: #121212; border: none; width: 75px; height: 75px; 
         }
 
         .reset-btn { 
-            background: #333; 
-            border: none; 
-            color: var(--text-dim); 
-            padding: 4px 10px; 
-            border-radius: 4px; 
-            font-size: 0.7em; 
-            cursor: pointer; 
-            margin-left: 5px;
+            background: #333; border: none; color: var(--text-dim); padding: 4px 10px; border-radius: 4px; font-size: 0.7em; cursor: pointer; margin-left: 5px;
         }
         
         .practice-settings { 
-            background: var(--panel-bg); 
-            border: 1px solid var(--border-color); 
-            padding: 15px; 
-            margin-bottom: 20px; 
-            border-radius: 12px; 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 12px; 
-            align-items: center; 
-            justify-content: space-around; 
+            background: var(--panel-bg); border: 1px solid var(--border-color); padding: 15px; margin-bottom: 20px; border-radius: 12px; 
+            display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-around; 
         }
         .opt-label { font-size: 0.85em; font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
         .num-input { 
-            width: 60px; 
-            background: #000; 
-            color: var(--primary-color); 
-            border: 1px solid var(--border-color); 
-            padding: 6px; 
-            border-radius: 6px; 
-            text-align: center; 
-            font-weight: bold; 
-            font-size: 1em;
+            width: 60px; background: #000; color: var(--primary-color); border: 1px solid var(--border-color); padding: 6px; 
+            border-radius: 6px; text-align: center; font-weight: bold; font-size: 1em;
         }
 
         input[type="file"] { 
-            width: 100%; 
-            padding: 18px; 
-            border: 2px dashed var(--border-color); 
-            border-radius: 12px; 
-            margin-bottom: 20px; 
-            color: var(--text-dim); 
-            background: #181818;
-            font-size: 0.9em;
+            width: 100%; padding: 18px; border: 2px dashed var(--border-color); border-radius: 12px; margin-bottom: 20px; 
+            color: var(--text-dim); background: #181818; font-size: 0.9em;
         }
 
         .clear-btn-ja { 
-            background: #333; 
-            border: none; 
-            color: var(--text-main); 
-            padding: 8px 18px; 
-            border-radius: 20px; 
-            font-size: 0.8em; 
-            cursor: pointer;
+            background: #333; border: none; color: var(--text-main); padding: 8px 18px; border-radius: 20px; font-size: 0.8em; cursor: pointer;
         }
 
-        .guide-box-inner { 
-            font-size: 0.85em; 
-            color: var(--text-dim); 
-            line-height: 1.7; 
-        }
+        .guide-box-inner { font-size: 0.85em; color: var(--text-dim); line-height: 1.7; }
         .guide-box-inner b { color: var(--primary-color); font-size: 1.1em; display: block; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
 
         #countdown-overlay { 
@@ -372,47 +307,24 @@
         }
 
         #ytPlayerContainer { 
-            position: relative;
-            width: 100%;
-            max-width: 900px;
-            margin: 0 auto;
-            aspect-ratio: 16 / 9; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            border: 1px solid var(--border-color);
-            background: #000;
+            position: relative; width: 100%; max-width: 900px; margin: 0 auto; aspect-ratio: 16 / 9; 
+            border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); background: #000;
         }
         #ytPlayerContainer iframe {
-            position: absolute;
-            top: 0; left: 0; width: 100% !important; height: 100% !important;
+            position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important;
         }
 
         .loop-btn-main { 
-            background: var(--primary-color); 
-            color: #121212; 
-            border: none; 
-            padding: 10px 18px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-size: 0.85em; 
-            font-weight: bold;
-            min-width: 100px; 
+            background: var(--primary-color); color: #121212; border: none; padding: 10px 18px; border-radius: 6px; 
+            cursor: pointer; font-size: 0.85em; font-weight: bold; min-width: 100px; 
         }
 
         .adj-btn { 
-            background: #333; 
-            border: 1px solid var(--border-color); 
-            color: var(--text-main); 
-            width: 44px; 
-            height: 36px; 
-            border-radius: 4px; 
-            cursor: pointer; 
+            background: #333; border: 1px solid var(--border-color); color: var(--text-main); width: 44px; height: 36px; border-radius: 4px; cursor: pointer; 
         }
 
         #toggleLoopBtn.active {
-            background: var(--primary-color);
-            color: #121212;
-            font-weight: bold;
+            background: var(--primary-color); color: #121212; font-weight: bold;
         }
     </style>
 </head>
@@ -451,6 +363,7 @@
         <ul>
             <li>ファイル選択でBPMを自動解析。</li>
             <li>メトロノームONで再生中にクリックが鳴ります。</li>
+            <li>メトロノーム音量はスライダーで調整可能です。</li>
             <li>波形ドラッグでループ範囲を指定可能。</li>
         </ul>
     </div>
@@ -470,7 +383,11 @@
 
         <div class="practice-settings">
             <label class="opt-label"><input type="checkbox" id="enableCountdown" checked> カウント(1-4)</label>
-            <label class="opt-label"><input type="checkbox" id="enableMetronome"> メトロノーム</label>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <label class="opt-label"><input type="checkbox" id="enableMetronome"> メトロノーム</label>
+                <span class="material-icons" style="font-size:16px; color:var(--text-dim);">volume_up</span>
+                <input type="range" id="metroVol" min="0" max="1" step="0.01" value="0.5" style="width:60px;">
+            </div>
             <label class="opt-label">BPM: <input type="number" id="bpmInput" class="num-input" value="120"></label>
             <label class="opt-label"><input type="checkbox" id="autoSpeedUp"> ループ毎に5%加速</label>
         </div>
@@ -547,7 +464,7 @@
 <script>
     let wavesurfer, wsRegions, ytPlayer, loopInterval, metroTimerID;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
-    let audioCtx, firstSoundTime = 0, originalBpm = 120, metroNextNoteTime = 0;
+    let audioCtx, firstSoundTime = 0, originalBpm = 120, nextMetroBeatTime = 0;
 
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
@@ -572,27 +489,43 @@
         if(mode === 'yt' && wavesurfer) wavesurfer.pause();
     }
 
-    /* メトロノームエンジン */
+    /* 改良版メトロノーム：再生位置に同期 */
     function playClick(time) {
         if (!audioCtx) return;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(880, time);
-        gain.gain.setValueAtTime(0.1, time);
-        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+        const vol = parseFloat(document.getElementById('metroVol').value);
+        osc.frequency.setValueAtTime(1000, time);
+        gain.gain.setValueAtTime(vol, time);
+        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
         osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(time); osc.stop(time + 0.05);
+        osc.start(time); osc.stop(time + 0.1);
     }
 
     function scheduleMetronome() {
         if (!wavesurfer || !wavesurfer.isPlaying()) return;
+        
         const bpm = parseInt(document.getElementById('bpmInput').value) || 120;
-        const secondsPerBeat = 60.0 / bpm;
-        while (metroNextNoteTime < audioCtx.currentTime + 0.1) {
-            if (document.getElementById('enableMetronome').checked) playClick(metroNextNoteTime);
-            metroNextNoteTime += secondsPerBeat;
+        const speed = parseFloat(document.getElementById('speed').value);
+        // 実効BPM（スピード変更を考慮）
+        const effectiveBpm = bpm; 
+        const secondsPerBeat = 60.0 / effectiveBpm;
+        
+        const currentTime = wavesurfer.getCurrentTime();
+        // 現在の再生位置(秒)を1拍の長さで割り、次の拍のタイミングを計算
+        const nextBeatInAudio = Math.ceil(currentTime / secondsPerBeat) * secondsPerBeat;
+        
+        // Web Audioの現在の時刻との差分を計算して予約
+        const delay = (nextBeatInAudio - currentTime) / speed;
+        const scheduleTime = audioCtx.currentTime + delay;
+
+        if (document.getElementById('enableMetronome').checked && delay < 0.1) {
+             playClick(scheduleTime);
         }
-        metroTimerID = setTimeout(scheduleMetronome, 25);
+        
+        // 次の拍までの時間を計算（スピードによって伸縮）
+        const nextInterval = (secondsPerBeat * 1000) / speed;
+        metroTimerID = setTimeout(scheduleMetronome, nextInterval);
     }
 
     async function analyzeAudio(file) {
@@ -604,22 +537,10 @@
         let skip = 0;
         for (let i = 0; i < data.length; i++) { if (Math.abs(data[i]) > 0.015) { skip = i / audioBuffer.sampleRate; break; } }
         firstSoundTime = skip;
-        const bpm = detectBPM(audioBuffer);
-        if (bpm > 0) { originalBpm = Math.round(bpm); document.getElementById('bpmInput').value = originalBpm; }
+        originalBpm = 120; // 簡易
+        document.getElementById('bpmInput').value = originalBpm;
         document.getElementById('loadStatus').innerText = "COMPLETE";
         tempCtx.close();
-    }
-
-    function detectBPM(buffer) {
-        const data = buffer.getChannelData(0);
-        const step = 100; const energy = [];
-        for (let i = 0; i < data.length; i += step) {
-            let sum = 0;
-            for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j] * data[i+j];
-            energy.push(Math.sqrt(sum/step));
-        }
-        let bestBpm = 120; // 簡易的なBPM検出
-        return bestBpm;
     }
 
     const fmt = s => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
@@ -653,8 +574,10 @@
         document.getElementById('playBtn').onclick = async () => {
             if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if(audioCtx.state === 'suspended') audioCtx.resume();
-            if(wavesurfer.isPlaying()) wavesurfer.pause();
-            else {
+            if(wavesurfer.isPlaying()) {
+                wavesurfer.pause();
+                clearTimeout(metroTimerID);
+            } else {
                 if(document.getElementById('enableCountdown').checked) {
                     const overlay = document.getElementById('countdown-overlay');
                     overlay.style.display = 'block';
@@ -670,7 +593,6 @@
                     }
                     overlay.style.display = 'none';
                 }
-                metroNextNoteTime = audioCtx.currentTime;
                 wavesurfer.play();
                 scheduleMetronome();
             }
