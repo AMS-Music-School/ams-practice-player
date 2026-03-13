@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AMS Practice Player</title>
     
+    <meta name="apple-mobile-web-app-title" content="AMS Player">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="apple-touch-icon" href="icon.png">
 
@@ -406,17 +409,16 @@
             cursor: pointer; 
         }
 
-        /* --- ループボタン配色修正 --- */
         #toggleLoopBtn {
-            background: #2a2a2a; /* オフ時は暗めの背景 */
+            background: #2a2a2a;
             color: var(--text-dim);
             border: 1px solid var(--border-color);
             transition: all 0.3s ease;
         }
 
         #toggleLoopBtn.active {
-            background: var(--primary-color); /* オン時はゴールド */
-            color: #121212; /* 文字は黒でコントラストを出す */
+            background: var(--primary-color);
+            color: #121212;
             border: 1px solid var(--primary-color);
             font-weight: bold;
             box-shadow: 0 0 10px rgba(212, 163, 115, 0.4);
@@ -591,7 +593,7 @@
     }
 
     /* ------------------------------------------------------------
-        メインロジック（提供コードを忠実に再現）
+        メインロジック
     ------------------------------------------------------------ */
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
