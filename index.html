@@ -16,11 +16,11 @@
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        /* --- プロ仕様へのデザイン・アップデート --- */
+        /* --- デザイン・スタイルは変更なし --- */
         :root {
-            --primary-color: #d4a373; /* 落ち着いたゴールド */
-            --bg-dark: #121212;        /* 深みのある黒 */
-            --panel-bg: #1e1e1e;       /* カード背景 */
+            --primary-color: #d4a373;
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
             --text-main: #e0e0e0;
             --text-dim: #999999;
             --border-color: #333333;
@@ -36,10 +36,9 @@
             padding: 0; 
             margin: 0; 
             overscroll-behavior-y: contain;
-            padding-top: var(--header-height); /* メニューバーの高さ分確保 */
+            padding-top: var(--header-height);
         }
 
-        /* --- 新設：メニューバー --- */
         header {
             position: fixed;
             top: 0;
@@ -71,7 +70,6 @@
             padding: 5px;
         }
 
-        /* サイドメニュー（ドロワー） */
         .side-menu {
             position: fixed;
             top: 0;
@@ -132,7 +130,6 @@
 
         .menu-item:hover { background: #333; }
 
-        /* ガイド用モーダル */
         .modal {
             display: none;
             position: fixed;
@@ -149,7 +146,6 @@
             box-shadow: 0 0 50px rgba(0,0,0,1);
         }
 
-        /* --- 既存スタイル（忠実に保持） --- */
         .container { 
             width: 100%; 
             max-width: 1200px; 
@@ -352,7 +348,6 @@
             cursor: pointer;
         }
 
-        /* 操作ガイド用の共通ボックス（モーダル内でも使用） */
         .guide-box-inner { 
             font-size: 0.85em; 
             color: var(--text-dim); 
@@ -571,7 +566,7 @@
 
 <script>
     /* ------------------------------------------------------------
-        UI 操作用スクリプト
+        UI 操作用スクリプト（変更なし）
     ------------------------------------------------------------ */
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
@@ -593,12 +588,13 @@
     }
 
     /* ------------------------------------------------------------
-        メインロジック
+        メインロジック（安定化修正）
     ------------------------------------------------------------ */
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
     let audioCtx, firstSoundTime = 0;
     let originalBpm = 120;
+    let currentObjectURL = null; // メモリ解放用
 
     function switchMode(mode) {
         currentMode = mode;
@@ -610,29 +606,50 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
+    // BPM解析ロジック（安定性を維持しつつ修正）
     async function analyzeAudio(file) {
         document.getElementById('loadStatus').innerText = "ANALYZING...";
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const arrayBuffer = await file.arrayBuffer();
-        const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
-        const data = audioBuffer.getChannelData(0);
-        let skip = 0;
-        for (let i = 0; i < data.length; i++) { if (Math.abs(data[i]) > 0.015) { skip = i / audioBuffer.sampleRate; break; } }
-        firstSoundTime = skip;
-        const bpm = detectBPM(audioBuffer);
-        if (bpm > 0) {
-            originalBpm = Math.round(bpm);
-            document.getElementById('bpmInput').value = originalBpm;
+        
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+            const data = audioBuffer.getChannelData(0);
+            
+            // 無音検知
+            let skip = 0;
+            for (let i = 0; i < data.length; i++) { 
+                if (Math.abs(data[i]) > 0.015) { 
+                    skip = i / audioBuffer.sampleRate; 
+                    break; 
+                } 
+            }
+            firstSoundTime = skip;
+
+            // BPM検知
+            const bpm = detectBPM(audioBuffer);
+            if (bpm > 0) {
+                originalBpm = Math.round(bpm);
+                document.getElementById('bpmInput').value = originalBpm;
+            }
+            
+            document.getElementById('loadStatus').innerText = "COMPLETE";
+            // WaveSurfer側にも時間を反映
+            if(wavesurfer && wavesurfer.isReady) wavesurfer.setTime(firstSoundTime);
+
+        } catch (e) {
+            console.error("Analysis error:", e);
+            document.getElementById('loadStatus').innerText = "READY";
+        } finally {
+            tempCtx.close();
         }
-        if(wavesurfer) wavesurfer.setTime(firstSoundTime);
-        document.getElementById('loadStatus').innerText = "COMPLETE";
-        tempCtx.close();
     }
 
     function detectBPM(buffer) {
         const data = buffer.getChannelData(0);
         const sampleRate = buffer.sampleRate;
-        const step = 100; const energy = [];
+        const step = 200; // ステップ数を少し増やして負荷軽減
+        const energy = [];
         for (let i = 0; i < data.length; i += step) {
             let sum = 0;
             for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j] * data[i+j];
@@ -642,9 +659,13 @@
         const minInterval = Math.floor((60 / maxBpm) * (sampleRate / step));
         const maxInterval = Math.floor((60 / minBpm) * (sampleRate / step));
         let bestBpm = 0, maxCorrelation = 0;
+        
+        // 処理の重さを考慮しサンプル範囲を限定
+        const maxSamples = Math.min(energy.length, 10000); 
+        
         for (let interval = minInterval; interval <= maxInterval; interval++) {
             let correlation = 0;
-            const limit = Math.min(energy.length - interval, Math.floor(60 * sampleRate / step));
+            const limit = Math.min(energy.length - interval, maxSamples);
             for (let i = 0; i < limit; i++) correlation += energy[i] * energy[i + interval];
             if (correlation > maxCorrelation) { maxCorrelation = correlation; bestBpm = 60 / (interval * step / sampleRate); }
         }
@@ -653,6 +674,7 @@
         return bestBpm;
     }
 
+    // カウントダウン・再生ロジック
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -688,6 +710,7 @@
         applySettings();
     }
 
+    // YouTube API
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
     function loadYouTube() {
@@ -714,6 +737,7 @@
     };
     window.toggleLoop = () => { isLooping = !isLooping; const b = document.getElementById('toggleLoopBtn'); b.innerText = isLooping ? "LOOP ON" : "LOOP OFF"; b.classList.toggle('active', isLooping); };
 
+    // WaveSurfer 初期化と設定
     let applySettings;
     function startApp() {
         if (typeof WaveSurfer === 'undefined') { setTimeout(startApp, 100); return; }
@@ -724,18 +748,40 @@
             height: 150, 
             barWidth: 2, 
             normalize: true, 
-            cursorColor: '#fff' 
+            cursorColor: '#fff',
+            // パフォーマンス向上のため設定追加
+            minPxPerSec: 50,
+            hideScrollbar: false
         });
+        
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         wavesurfer.registerPlugin(WaveSurfer.Timeline.create({ container: '#timeline' }));
         
-        wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
-        document.getElementById('audioFile').onchange = e => { if(e.target.files[0]) { analyzeAudio(e.target.files[0]); wavesurfer.load(URL.createObjectURL(e.target.files[0])); } };
+        wsRegions.on('region-created', r => { 
+            if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
+            wavesurfer.setTime(r.start); 
+        });
+
+        // ファイル読み込みイベント（ここをスムーズに修正）
+        document.getElementById('audioFile').onchange = e => { 
+            const file = e.target.files[0];
+            if(file) { 
+                // 前回のURLを解放してメモリを節約
+                if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
+                currentObjectURL = URL.createObjectURL(file);
+                
+                // 解析と描画を同時並行で開始
+                analyzeAudio(file); 
+                wavesurfer.load(currentObjectURL);
+            } 
+        };
         
         wavesurfer.on('ready', () => { 
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
+            // 解析が終わっていたら先頭へ移動
+            if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
         });
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
@@ -756,14 +802,13 @@
             
             if (media) {
                 media.preservesPitch = true;
-                media.webkitPreservesPitch = true;
-                media.mozPreservesPitch = true;
                 const pitchFactor = Math.pow(2, p / 12);
-                wavesurfer.setPlaybackRate(s);
                 
                 if (media.detune !== undefined) {
                     media.detune = p * 100;
+                    wavesurfer.setPlaybackRate(s);
                 } else {
+                    // detune非対応ブラウザ用
                     if (p !== 0) {
                         media.preservesPitch = false;
                         wavesurfer.setPlaybackRate(s * pitchFactor);
@@ -788,14 +833,22 @@
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            if (wavesurfer.isPlaying()) wavesurfer.pause();
-            else {
+            
+            if (wavesurfer.isPlaying()) {
+                wavesurfer.pause();
+            } else {
                 const current = wavesurfer.getCurrentTime();
                 const region = wsRegions.getRegions()[0];
+                
+                // カウントダウンが必要な場合の開始位置調整
                 if (document.getElementById('enableCountdown').checked) {
-                    if (region && current < region.start) wavesurfer.setTime(region.start);
-                    else if (!region && current < firstSoundTime) wavesurfer.setTime(firstSoundTime);
+                    if (region && (current < region.start || current >= region.end)) {
+                        wavesurfer.setTime(region.start);
+                    } else if (!region && current < firstSoundTime) {
+                        wavesurfer.setTime(firstSoundTime);
+                    }
                 }
+                
                 await runCountdown();
                 wavesurfer.play();
             }
@@ -808,13 +861,27 @@
         wavesurfer.on('timeupdate', t => {
             document.getElementById('currentTime').innerText = fmt(t);
             const r = wsRegions.getRegions()[0];
-            if(r && t >= r.end && Date.now() - lastJump > 200) { wavesurfer.setTime(r.start); applySpeedUp(); lastJump = Date.now(); }
+            // ループ処理
+            if(r && t >= r.end && Date.now() - lastJump > 200) { 
+                wavesurfer.setTime(r.start); 
+                applySpeedUp(); 
+                lastJump = Date.now(); 
+            }
         });
 
-        window.resetSetting = (id, val) => { document.getElementById(id).value = val; applySettings(); };
+        window.resetSetting = (id, val) => { 
+            document.getElementById(id).value = val; 
+            applySettings(); 
+        };
     }
 
-    window.addEventListener('keydown', (e) => { if (e.code === 'Space' && currentMode === 'file') { e.preventDefault(); document.getElementById('playBtn').click(); } });
+    window.addEventListener('keydown', (e) => { 
+        if (e.code === 'Space' && currentMode === 'file') { 
+            e.preventDefault(); 
+            document.getElementById('playBtn').click(); 
+        } 
+    });
+    
     startApp();
 </script>
 </body>
