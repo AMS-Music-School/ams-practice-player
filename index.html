@@ -743,13 +743,26 @@
             wavesurfer.setTime(r.start); 
         });
 
-        /* --- ズーム機能の追加 --- */
+        /* --- ズームとタイムラインの同期修正 --- */
         const zoomSlider = document.getElementById('zoomSlider');
-        zoomSlider.oninput = (e) => wavesurfer.zoom(Number(e.target.value));
-        document.getElementById('resetZoomBtn').onclick = () => {
-            zoomSlider.value = 50;
-            wavesurfer.zoom(50);
+        
+        const syncTimeline = () => {
+            const scrollWidth = wavesurfer.getWrapper().scrollWidth;
+            const tl = document.getElementById('timeline');
+            if (tl && tl.firstChild) {
+                tl.firstChild.style.width = scrollWidth + 'px';
+            }
         };
+
+        const performZoom = (level) => {
+            const val = Math.max(10, Math.min(500, level));
+            zoomSlider.value = val;
+            wavesurfer.zoom(val);
+            syncTimeline(); // タイムライン幅を強制同期
+        };
+
+        zoomSlider.oninput = (e) => performZoom(Number(e.target.value));
+        document.getElementById('resetZoomBtn').onclick = () => performZoom(50);
 
         // PC: ホイールズーム
         const wfEl = document.getElementById('waveform');
@@ -758,9 +771,7 @@
                 e.preventDefault();
                 let currentZoom = Number(zoomSlider.value);
                 let newZoom = e.deltaY > 0 ? currentZoom - 10 : currentZoom + 10;
-                newZoom = Math.max(10, Math.min(500, newZoom));
-                zoomSlider.value = newZoom;
-                wavesurfer.zoom(newZoom);
+                performZoom(newZoom);
             }
         }, { passive: false });
 
@@ -776,10 +787,7 @@
                 if (lastTouchDiff > 0) {
                     let currentZoom = Number(zoomSlider.value);
                     let delta = curDiff - lastTouchDiff;
-                    let newZoom = currentZoom + (delta * 0.5);
-                    newZoom = Math.max(10, Math.min(500, newZoom));
-                    zoomSlider.value = newZoom;
-                    wavesurfer.zoom(newZoom);
+                    performZoom(currentZoom + (delta * 0.5));
                 }
                 lastTouchDiff = curDiff;
             }
@@ -800,6 +808,7 @@
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
+            syncTimeline(); // 読み込み完了時に幅を同期
         });
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
