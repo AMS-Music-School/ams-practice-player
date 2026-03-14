@@ -251,7 +251,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.6);
         }
 
-        .val-display { color: var(--primary-color); font-weight: bold; min-width: 85px; text-align: right; font-size: 1.2em; }
+        .val-display { color: var(--primary-color); font-weight: bold; min-width: 90px; text-align: right; font-size: 1.2em; }
         
         .transport-controls { 
             display: flex; 
@@ -264,7 +264,7 @@
         }
         .btn-ctrl { 
             background: var(--panel-bg); 
-            color: var(--text-main); 
+            color: var(--text-dim); 
             border: 1px solid var(--border-color); 
             border-radius: 50%; 
             width: 55px; 
@@ -274,7 +274,7 @@
             justify-content: center; 
             cursor: pointer;
             box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         .btn-ctrl.active {
             color: var(--primary-color);
@@ -287,6 +287,7 @@
             border: none; 
             width: 75px; 
             height: 75px; 
+            color: #121212 !important;
         }
 
         .reset-btn { 
@@ -321,13 +322,6 @@
             cursor: pointer;
         }
 
-        .guide-box-inner { 
-            font-size: 0.85em; 
-            color: var(--text-dim); 
-            line-height: 1.7; 
-        }
-        .guide-box-inner b { color: var(--primary-color); font-size: 1.1em; display: block; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-
         #countdown-overlay { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             font-size: 120px; color: var(--primary-color); font-weight: bold; z-index: 1000; 
@@ -360,16 +354,15 @@
         </button>
     </div>
     <div class="menu-item" onclick="showGuide('file')"><span class="material-icons">description</span> Audio Fileモード ガイド</div>
-    <div class="menu-item" onclick="showGuide('yt')"><span class="material-icons">smart_display</span> YouTubeモード ガイド</div>
 </div>
 
 <div id="guideModalFile" class="modal">
     <div class="guide-box-inner">
         <b>【Audio File Mode】ガイド</b>
         <ul>
-            <li><b>BPM:</b> スピードを変更すると自動計算されます。</li>
-            <li><b>カウントロゴ:</b> 再生左。タップでカウントON/OFF。</li>
-            <li><b>加速ロゴ:</b> 再生右。タップでループ毎に自動加速。</li>
+            <li><b>カウントロゴ:</b> 再生ボタン左。タップでカウント予備動作をON/OFFします。</li>
+            <li><b>加速ロゴ:</b> 再生ボタン右。タップするとループの度に5%ずつ自動加速します。</li>
+            <li><b>Pitch:</b> 音程を変更できます。Speedと独立して動作します。</li>
         </ul>
     </div>
     <button class="clear-btn-ja" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
@@ -405,7 +398,7 @@
             <div id="waveform"></div>
         </div>
 
-        <div class="clear-btn-container" style="text-align:center;">
+        <div class="clear-btn-container" style="text-align:center; margin-bottom:10px;">
             <button class="clear-btn-ja" onclick="wsRegions.clearRegions()">範囲解除</button>
         </div>
         
@@ -445,6 +438,9 @@
 </div>
 
 <script>
+    let wavesurfer, wsRegions, isCountEnabled = true, isSpeedUpEnabled = false;
+    let audioCtx, firstSoundTime = 0, originalBpm = 120, currentObjectURL = null;
+
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
         document.getElementById('menuOverlay').style.display = isOpen ? 'block' : 'none';
@@ -461,10 +457,12 @@
         document.getElementById('menuOverlay').style.display = 'none';
     }
 
-    let wavesurfer, wsRegions, isCountEnabled = true, isSpeedUpEnabled = false;
-    let audioCtx, firstSoundTime = 0, originalBpm = 120, currentObjectURL = null;
+    function switchMode(mode) {
+        document.getElementById('file-section').classList.toggle('active', mode === 'file');
+        document.getElementById('yt-section').classList.toggle('active', mode === 'yt');
+    }
 
-    // 機能トグル（カウント・加速）
+    // カウント・加速機能のトグル
     function toggleFeature(type) {
         if (type === 'count') {
             isCountEnabled = !isCountEnabled;
@@ -473,11 +471,6 @@
             isSpeedUpEnabled = !isSpeedUpEnabled;
             document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled);
         }
-    }
-
-    function switchMode(mode) {
-        document.getElementById('file-section').classList.toggle('active', mode === 'file');
-        document.getElementById('yt-section').classList.toggle('active', mode === 'yt');
     }
 
     async function analyzeAudio(file) {
@@ -507,11 +500,13 @@
             let correlation = 0; for (let i = 0; i < Math.min(energy.length - interval, 5000); i++) correlation += energy[i] * energy[i + interval];
             if (correlation > maxCorrelation) { maxCorrelation = correlation; bestBpm = 60 / (interval * step / buffer.sampleRate); }
         }
-        return bestBpm > 180 ? bestBpm / 2 : (bestBpm < 70 ? bestBpm * 2 : bestBpm);
+        if (bestBpm > 180) bestBpm /= 2; if (bestBpm < 70) bestBpm *= 2;
+        return bestBpm;
     }
 
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
         osc.frequency.setValueAtTime(isLast ? 880 : 440, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
@@ -561,7 +556,7 @@
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
         });
 
-        // PitchとSpeedの設定適用ロジック（復元版）
+        // Speed & Pitch (Detune) 適用ロジック
         window.applySettings = () => {
             const s = parseFloat(document.getElementById('speed').value);
             const p = parseInt(document.getElementById('pitch').value);
@@ -569,10 +564,10 @@
             if (media) {
                 media.preservesPitch = true;
                 if (media.detune !== undefined) {
-                    media.detune = p * 100;
+                    media.detune = p * 100; // Pitch機能の核
                     wavesurfer.setPlaybackRate(s);
                 } else {
-                    // Detune非対応ブラウザ用
+                    // 非対応環境へのフォールバック
                     media.preservesPitch = false;
                     wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12));
                 }
