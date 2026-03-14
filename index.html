@@ -8,13 +8,13 @@
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" href="icon.png?v=1.0.1" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.1">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
     <style>
         :root {
             --primary-color: #d4a373;
@@ -420,6 +420,9 @@
             font-weight: bold;
             box-shadow: 0 0 10px rgba(212, 163, 115, 0.4);
         }
+        
+        /* タイムライン表示領域を削除 */
+        #timeline { display: none !important; }
     </style>
 </head>
 <body>
@@ -572,6 +575,11 @@
 </div>
 
 <script>
+    /* Webアプリ更新時の反映を確実にするため、
+       スクリプトの先頭でキャッシュ無効化のヒントを持たせる 
+    */
+    console.log("App Version: 1.0.1 (Timeline Disabled)");
+
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
         document.getElementById('menuOverlay').style.display = isOpen ? 'block' : 'none';
@@ -737,46 +745,23 @@
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         
-        // タイムラインプラグインの初期化
-        const timeline = wavesurfer.registerPlugin(WaveSurfer.Timeline.create({ 
-            container: '#timeline' 
-        }));
+        // タイムラインプラグインの登録コードを削除
         
         wsRegions.on('region-created', r => { 
             if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
             wavesurfer.setTime(r.start); 
         });
 
-        /* --- タイムライン同期のための修正箇所 --- */
         const zoomSlider = document.getElementById('zoomSlider');
         
-        // タイムラインの要素を強制的に波形と同じ幅に更新する関数
-        const forceUpdateTimeline = () => {
-            requestAnimationFrame(() => {
-                const scrollWidth = wavesurfer.getWrapper().scrollWidth;
-                const tlContainer = document.getElementById('timeline');
-                // WaveSurferプラグインが生成するShadow DOM内のcanvas/divの幅を強制上書き
-                const inner = tlContainer.querySelector('div');
-                if (inner) {
-                    inner.style.width = scrollWidth + 'px';
-                }
-            });
-        };
-
         const performZoom = (level) => {
             const val = Math.max(10, Math.min(500, level));
             zoomSlider.value = val;
             wavesurfer.zoom(val);
-            // ズーム直後にタイムラインを強制更新
-            forceUpdateTimeline();
         };
 
         zoomSlider.oninput = (e) => performZoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => performZoom(50);
-
-        // 波形のスクロールイベントやリサイズ時にも更新をかける
-        wavesurfer.on('redraw', forceUpdateTimeline);
-        wavesurfer.on('zoom', forceUpdateTimeline);
 
         // PC: ホイールズーム
         const wfEl = document.getElementById('waveform');
@@ -822,7 +807,6 @@
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
-            // 初回描画のズームを適用
             performZoom(Number(zoomSlider.value));
         });
         
