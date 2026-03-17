@@ -11,11 +11,12 @@
     <link rel="icon" href="icon.png?v=1.0.3" type="image/png">
     <link rel="apple-touch-icon" href="icon.png?v=1.0.3">
 
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js" defer></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js" defer></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <style>
+        /* スタイル部分は変更なしのため維持 */
         :root {
             --primary-color: #d4a373;
             --bg-dark: #121212;
@@ -400,8 +401,7 @@
             background: #333; 
             border: 1px solid var(--border-color); 
             color: var(--text-main); 
-            width: 44px; 
-            height: 36px; 
+            width: 44px; height: 36px; 
             border-radius: 4px; 
             cursor: pointer; 
         }
@@ -572,7 +572,7 @@
 </div>
 
 <script>
-    console.log("App Version: 1.0.3 (Redesigned Zoom Logic)");
+    console.log("App Version: 1.0.4 (Optimized Initialization)");
 
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
@@ -694,8 +694,11 @@
         applySettings();
     }
 
-    const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
+    // YouTube APIの読み込み
+    const tag = document.createElement('script'); 
+    tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
+
     function loadYouTube() {
         const url = document.getElementById('ytUrl').value;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
@@ -721,8 +724,15 @@
     window.toggleLoop = () => { isLooping = !isLooping; const b = document.getElementById('toggleLoopBtn'); b.innerText = isLooping ? "LOOP ON" : "LOOP OFF"; b.classList.toggle('active', isLooping); };
 
     let applySettings;
+
+    // 修正ポイント3: DOM要素の存在とライブラリ読み込みを待つように強化
     function startApp() {
-        if (typeof WaveSurfer === 'undefined') { setTimeout(startApp, 100); return; }
+        const container = document.querySelector('#waveform');
+        if (!container || typeof WaveSurfer === 'undefined') { 
+            setTimeout(startApp, 100); 
+            return; 
+        }
+
         wavesurfer = WaveSurfer.create({ 
             container: '#waveform', 
             waveColor: '#333', 
@@ -731,7 +741,7 @@
             barWidth: 2, 
             normalize: true, 
             cursorColor: '#fff',
-            minPxPerSec: 0, // 全体表示を可能にするため0に
+            minPxPerSec: 0,
             hideScrollbar: false,
             autoCenter: true
         });
@@ -744,16 +754,11 @@
             wavesurfer.setTime(r.start); 
         });
 
-        // --- ズーム制御ロジックの再構築 ---
         const zoomSlider = document.getElementById('zoomSlider');
         const performZoom = (level) => {
             const val = Math.max(0, Math.min(500, level));
             zoomSlider.value = val;
-            if (val == 0) {
-                wavesurfer.zoom(0); // 最小値で全体表示
-            } else {
-                wavesurfer.zoom(val); 
-            }
+            wavesurfer.zoom(val == 0 ? 0 : val);
         };
 
         zoomSlider.oninput = (e) => performZoom(Number(e.target.value));
@@ -763,9 +768,7 @@
         wfEl.addEventListener('wheel', (e) => {
             if (Math.abs(e.deltaY) > 0) {
                 e.preventDefault();
-                let currentZoom = Number(zoomSlider.value);
-                let newZoom = e.deltaY > 0 ? currentZoom - 20 : currentZoom + 20;
-                performZoom(newZoom);
+                performZoom(Number(zoomSlider.value) + (e.deltaY > 0 ? -20 : 20));
             }
         }, { passive: false });
 
@@ -773,15 +776,8 @@
         wfEl.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
                 e.preventDefault();
-                let curDiff = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY
-                );
-                if (lastTouchDiff > 0) {
-                    let currentZoom = Number(zoomSlider.value);
-                    let delta = curDiff - lastTouchDiff;
-                    performZoom(currentZoom + (delta * 0.5));
-                }
+                let curDiff = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+                if (lastTouchDiff > 0) performZoom(Number(zoomSlider.value) + (curDiff - lastTouchDiff) * 0.5);
                 lastTouchDiff = curDiff;
             }
         }, { passive: false });
@@ -801,20 +797,10 @@
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
-            // 読み込み完了時、現在のスライダー値（初期値100）でズーム適用
             performZoom(Number(zoomSlider.value));
         });
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
-
-        document.getElementById('bpmInput').oninput = (e) => {
-            let targetBpm = parseFloat(e.target.value);
-            if (!targetBpm || targetBpm <= 0) return;
-            let calculatedSpeed = targetBpm / originalBpm;
-            calculatedSpeed = Math.max(0.5, Math.min(1.5, calculatedSpeed));
-            document.getElementById('speed').value = calculatedSpeed.toFixed(2);
-            applySettings(true);
-        };
 
         applySettings = (skipBpmUpdate = false) => {
             const s = parseFloat(document.getElementById('speed').value);
@@ -838,6 +824,14 @@
             document.getElementById('spTxt').innerText = s.toFixed(2) + "x"; 
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
             if (!skipBpmUpdate) document.getElementById('bpmInput').value = Math.round(originalBpm * s);
+        };
+
+        document.getElementById('bpmInput').oninput = (e) => {
+            let targetBpm = parseFloat(e.target.value);
+            if (!targetBpm || targetBpm <= 0) return;
+            let calculatedSpeed = Math.max(0.5, Math.min(1.5, targetBpm / originalBpm));
+            document.getElementById('speed').value = calculatedSpeed.toFixed(2);
+            applySettings(true);
         };
 
         document.getElementById('speed').oninput = () => applySettings(false);
@@ -883,7 +877,10 @@
         } 
     });
     
-    startApp();
+    // 修正ポイント2: HTMLの読み込みが完了してから初期化を開始
+    window.addEventListener('DOMContentLoaded', () => {
+        startApp();
+    });
 </script>
 </body>
 </html>
