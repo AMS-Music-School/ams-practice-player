@@ -11,8 +11,8 @@
     <link rel="icon" href="icon.png?v=1.0.3" type="image/png">
     <link rel="apple-touch-icon" href="icon.png?v=1.0.3">
 
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js" defer></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js" defer></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <style>
@@ -400,7 +400,8 @@
             background: #333; 
             border: 1px solid var(--border-color); 
             color: var(--text-main); 
-            width: 44px; height: 36px; 
+            width: 44px; 
+            height: 36px; 
             border-radius: 4px; 
             cursor: pointer; 
         }
@@ -571,9 +572,8 @@
 </div>
 
 <script>
-    console.log("App Version: 1.0.4 (Optimized Initialization)");
+    console.log("App Version: 1.0.3 (Redesigned Zoom Logic)");
 
-    // 共通関数（メニュー、ガイド、モード切替）
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
         document.getElementById('menuOverlay').style.display = isOpen ? 'block' : 'none';
@@ -609,7 +609,6 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
-    // オーディオ解析（BPM、無音検知）
     async function analyzeAudio(file) {
         document.getElementById('loadStatus').innerText = "ANALYZING...";
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -660,7 +659,6 @@
         return bestBpm;
     }
 
-    // カウントダウン機能
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -696,11 +694,8 @@
         applySettings();
     }
 
-    // YouTube IFrame API
-    const tag = document.createElement('script'); 
-    tag.src = "https://www.youtube.com/iframe_api";
+    const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
-
     function loadYouTube() {
         const url = document.getElementById('ytUrl').value;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
@@ -726,16 +721,8 @@
     window.toggleLoop = () => { isLooping = !isLooping; const b = document.getElementById('toggleLoopBtn'); b.innerText = isLooping ? "LOOP ON" : "LOOP OFF"; b.classList.toggle('active', isLooping); };
 
     let applySettings;
-
-    // アプリ初期化
     function startApp() {
-        const container = document.querySelector('#waveform');
-        // WaveSurferライブラリがロードされるのを待つリトライ処理
-        if (!container || typeof WaveSurfer === 'undefined') { 
-            setTimeout(startApp, 100); 
-            return; 
-        }
-
+        if (typeof WaveSurfer === 'undefined') { setTimeout(startApp, 100); return; }
         wavesurfer = WaveSurfer.create({ 
             container: '#waveform', 
             waveColor: '#333', 
@@ -744,7 +731,7 @@
             barWidth: 2, 
             normalize: true, 
             cursorColor: '#fff',
-            minPxPerSec: 0,
+            minPxPerSec: 0, // 全体表示を可能にするため0に
             hideScrollbar: false,
             autoCenter: true
         });
@@ -757,12 +744,16 @@
             wavesurfer.setTime(r.start); 
         });
 
-        // ズーム操作
+        // --- ズーム制御ロジックの再構築 ---
         const zoomSlider = document.getElementById('zoomSlider');
         const performZoom = (level) => {
             const val = Math.max(0, Math.min(500, level));
             zoomSlider.value = val;
-            wavesurfer.zoom(val == 0 ? 0 : val);
+            if (val == 0) {
+                wavesurfer.zoom(0); // 最小値で全体表示
+            } else {
+                wavesurfer.zoom(val); 
+            }
         };
 
         zoomSlider.oninput = (e) => performZoom(Number(e.target.value));
@@ -772,7 +763,9 @@
         wfEl.addEventListener('wheel', (e) => {
             if (Math.abs(e.deltaY) > 0) {
                 e.preventDefault();
-                performZoom(Number(zoomSlider.value) + (e.deltaY > 0 ? -20 : 20));
+                let currentZoom = Number(zoomSlider.value);
+                let newZoom = e.deltaY > 0 ? currentZoom - 20 : currentZoom + 20;
+                performZoom(newZoom);
             }
         }, { passive: false });
 
@@ -780,14 +773,20 @@
         wfEl.addEventListener('touchmove', (e) => {
             if (e.touches.length === 2) {
                 e.preventDefault();
-                let curDiff = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
-                if (lastTouchDiff > 0) performZoom(Number(zoomSlider.value) + (curDiff - lastTouchDiff) * 0.5);
+                let curDiff = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY
+                );
+                if (lastTouchDiff > 0) {
+                    let currentZoom = Number(zoomSlider.value);
+                    let delta = curDiff - lastTouchDiff;
+                    performZoom(currentZoom + (delta * 0.5));
+                }
                 lastTouchDiff = curDiff;
             }
         }, { passive: false });
         wfEl.addEventListener('touchend', () => { lastTouchDiff = -1; });
 
-        // ファイル読み込み
         document.getElementById('audioFile').onchange = e => { 
             const file = e.target.files[0];
             if(file) { 
@@ -802,12 +801,21 @@
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
+            // 読み込み完了時、現在のスライダー値（初期値100）でズーム適用
             performZoom(Number(zoomSlider.value));
         });
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
 
-        // 再生速度・ピッチ設定
+        document.getElementById('bpmInput').oninput = (e) => {
+            let targetBpm = parseFloat(e.target.value);
+            if (!targetBpm || targetBpm <= 0) return;
+            let calculatedSpeed = targetBpm / originalBpm;
+            calculatedSpeed = Math.max(0.5, Math.min(1.5, calculatedSpeed));
+            document.getElementById('speed').value = calculatedSpeed.toFixed(2);
+            applySettings(true);
+        };
+
         applySettings = (skipBpmUpdate = false) => {
             const s = parseFloat(document.getElementById('speed').value);
             const p = parseInt(document.getElementById('pitch').value);
@@ -832,18 +840,9 @@
             if (!skipBpmUpdate) document.getElementById('bpmInput').value = Math.round(originalBpm * s);
         };
 
-        document.getElementById('bpmInput').oninput = (e) => {
-            let targetBpm = parseFloat(e.target.value);
-            if (!targetBpm || targetBpm <= 0) return;
-            let calculatedSpeed = Math.max(0.5, Math.min(1.5, targetBpm / originalBpm));
-            document.getElementById('speed').value = calculatedSpeed.toFixed(2);
-            applySettings(true);
-        };
-
         document.getElementById('speed').oninput = () => applySettings(false);
         document.getElementById('pitch').oninput = () => applySettings(false);
 
-        // 再生制御
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -877,7 +876,6 @@
         window.resetSetting = (id, val) => { document.getElementById(id).value = val; applySettings(); };
     }
 
-    // キーボード操作（Spaceで再生/停止）
     window.addEventListener('keydown', (e) => { 
         if (e.code === 'Space' && currentMode === 'file') { 
             e.preventDefault(); 
@@ -885,10 +883,7 @@
         } 
     });
     
-    // HTMLの解析が完了したタイミングでアプリを開始
-    window.addEventListener('DOMContentLoaded', () => {
-        startApp();
-    });
+    startApp();
 </script>
 </body>
 </html>
