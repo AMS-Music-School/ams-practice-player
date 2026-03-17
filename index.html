@@ -260,7 +260,7 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.6);
         }
 
-        .val-display { color: var(--primary-color); font-weight: bold; min-width: 100px; text-align: right; font-size: 1.2em; }
+        .val-display { color: var(--primary-color); font-weight: bold; min-width: 65px; text-align: right; font-size: 1.2em; }
         
         .transport-controls { 
             display: flex; 
@@ -326,7 +326,6 @@
             text-align: center; 
             font-weight: bold; 
             font-size: 1em;
-            display: none; /* 前回の入力エリアは非表示に */
         }
 
         input[type="file"] { 
@@ -459,7 +458,7 @@
         <b>【Audio File Mode】操作ガイド</b>
         <ul>
             <li><b>ファイル選択:</b> デバイス内の音楽ファイルを選択してください。BPMと無音部分を自動解析します。</li>
-            <li><b>スピード調整:</b> スライダーを動かすと再生速度とBPMが連動して変化します。</li>
+            <li><b>BPM連動:</b> BPM数値を手入力すると速度が変わります。速度を変えるとBPMが計算されます。</li>
             <li><b>ループ設定:</b> 波形をドラッグして範囲を選択すると、その区間が繰り返し再生されます。</li>
             <li><b>ズーム:</b> バーの中央を標準とし、左端で全体表示、右端で詳細拡大ができます。</li>
         </ul>
@@ -491,6 +490,7 @@
 
         <div class="practice-settings">
             <label class="opt-label"><input type="checkbox" id="enableCountdown" checked> カウント</label>
+            <label class="opt-label">BPM: <input type="number" id="bpmInput" class="num-input" value="120" min="40" max="300"></label>
             <label class="opt-label"><input type="checkbox" id="autoSpeedUp"> ループ毎に5%加速</label>
         </div>
 
@@ -530,7 +530,7 @@
             <div class="row">
                 <div style="min-width:85px; font-weight:bold; color:var(--text-dim); font-size:0.9em;">Speed <button class="reset-btn" onclick="resetSetting('speed', 1.0)">Reset</button></div>
                 <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="1.0">
-                <span id="spTxt" class="val-display">BPM 120</span>
+                <span id="spTxt" class="val-display">1.00x</span>
             </div>
             <div class="row">
                 <div style="min-width:85px; font-weight:bold; color:var(--text-dim); font-size:0.9em;">Pitch <button class="reset-btn" onclick="resetSetting('pitch', 0)">Reset</button></div>
@@ -572,7 +572,7 @@
 </div>
 
 <script>
-    console.log("App Version: 1.0.4 (BPM Value Display Sync)");
+    console.log("App Version: 1.0.3 (Redesigned Zoom Logic)");
 
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
@@ -624,20 +624,13 @@
             const bpm = detectBPM(audioBuffer);
             if (bpm > 0) {
                 originalBpm = Math.round(bpm);
-                // 表示更新をコール
-                updateBpmDisplay();
+                document.getElementById('bpmInput').value = originalBpm;
             }
             document.getElementById('loadStatus').innerText = "COMPLETE";
             if(wavesurfer && wavesurfer.isReady) wavesurfer.setTime(firstSoundTime);
         } catch (e) {
             document.getElementById('loadStatus').innerText = "READY";
         } finally { tempCtx.close(); }
-    }
-
-    function updateBpmDisplay() {
-        const currentSpeed = parseFloat(document.getElementById('speed').value);
-        const currentBpm = Math.round(originalBpm * currentSpeed);
-        document.getElementById('spTxt').innerText = "BPM " + currentBpm;
     }
 
     function detectBPM(buffer) {
@@ -680,9 +673,8 @@
 
     async function runCountdown() {
         if (!document.getElementById('enableCountdown').checked) return true;
-        const currentSpeed = parseFloat(document.getElementById('speed').value);
-        const currentBpm = originalBpm * currentSpeed;
-        const interval = 60000 / currentBpm;
+        const bpm = parseInt(document.getElementById('bpmInput').value) || 120;
+        const interval = 60000 / bpm;
         const overlay = document.getElementById('countdown-overlay');
         overlay.style.display = 'block';
         for (let i = 1; i <= 4; i++) {
@@ -739,7 +731,7 @@
             barWidth: 2, 
             normalize: true, 
             cursorColor: '#fff',
-            minPxPerSec: 0, 
+            minPxPerSec: 0, // 全体表示を可能にするため0に
             hideScrollbar: false,
             autoCenter: true
         });
@@ -752,12 +744,13 @@
             wavesurfer.setTime(r.start); 
         });
 
+        // --- ズーム制御ロジックの再構築 ---
         const zoomSlider = document.getElementById('zoomSlider');
         const performZoom = (level) => {
             const val = Math.max(0, Math.min(500, level));
             zoomSlider.value = val;
             if (val == 0) {
-                wavesurfer.zoom(0); 
+                wavesurfer.zoom(0); // 最小値で全体表示
             } else {
                 wavesurfer.zoom(val); 
             }
@@ -808,12 +801,22 @@
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
+            // 読み込み完了時、現在のスライダー値（初期値100）でズーム適用
             performZoom(Number(zoomSlider.value));
         });
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
 
-        applySettings = () => {
+        document.getElementById('bpmInput').oninput = (e) => {
+            let targetBpm = parseFloat(e.target.value);
+            if (!targetBpm || targetBpm <= 0) return;
+            let calculatedSpeed = targetBpm / originalBpm;
+            calculatedSpeed = Math.max(0.5, Math.min(1.5, calculatedSpeed));
+            document.getElementById('speed').value = calculatedSpeed.toFixed(2);
+            applySettings(true);
+        };
+
+        applySettings = (skipBpmUpdate = false) => {
             const s = parseFloat(document.getElementById('speed').value);
             const p = parseInt(document.getElementById('pitch').value);
             const media = wavesurfer.getMediaElement();
@@ -832,13 +835,13 @@
                     }
                 }
             }
-            // スライダー右側の数値をBPMに更新
-            updateBpmDisplay();
+            document.getElementById('spTxt').innerText = s.toFixed(2) + "x"; 
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
+            if (!skipBpmUpdate) document.getElementById('bpmInput').value = Math.round(originalBpm * s);
         };
 
-        document.getElementById('speed').oninput = () => applySettings();
-        document.getElementById('pitch').oninput = () => applySettings();
+        document.getElementById('speed').oninput = () => applySettings(false);
+        document.getElementById('pitch').oninput = () => applySettings(false);
 
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
