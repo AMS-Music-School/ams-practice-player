@@ -16,7 +16,6 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     
     <style>
-        /* スタイル部分は変更なしのため維持 */
         :root {
             --primary-color: #d4a373;
             --bg-dark: #121212;
@@ -574,6 +573,7 @@
 <script>
     console.log("App Version: 1.0.4 (Optimized Initialization)");
 
+    // 共通関数（メニュー、ガイド、モード切替）
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
         document.getElementById('menuOverlay').style.display = isOpen ? 'block' : 'none';
@@ -609,6 +609,7 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
+    // オーディオ解析（BPM、無音検知）
     async function analyzeAudio(file) {
         document.getElementById('loadStatus').innerText = "ANALYZING...";
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -659,6 +660,7 @@
         return bestBpm;
     }
 
+    // カウントダウン機能
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -694,7 +696,7 @@
         applySettings();
     }
 
-    // YouTube APIの読み込み
+    // YouTube IFrame API
     const tag = document.createElement('script'); 
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
@@ -725,9 +727,10 @@
 
     let applySettings;
 
-    // 修正ポイント3: DOM要素の存在とライブラリ読み込みを待つように強化
+    // アプリ初期化
     function startApp() {
         const container = document.querySelector('#waveform');
+        // WaveSurferライブラリがロードされるのを待つリトライ処理
         if (!container || typeof WaveSurfer === 'undefined') { 
             setTimeout(startApp, 100); 
             return; 
@@ -754,6 +757,7 @@
             wavesurfer.setTime(r.start); 
         });
 
+        // ズーム操作
         const zoomSlider = document.getElementById('zoomSlider');
         const performZoom = (level) => {
             const val = Math.max(0, Math.min(500, level));
@@ -783,6 +787,7 @@
         }, { passive: false });
         wfEl.addEventListener('touchend', () => { lastTouchDiff = -1; });
 
+        // ファイル読み込み
         document.getElementById('audioFile').onchange = e => { 
             const file = e.target.files[0];
             if(file) { 
@@ -802,6 +807,7 @@
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
 
+        // 再生速度・ピッチ設定
         applySettings = (skipBpmUpdate = false) => {
             const s = parseFloat(document.getElementById('speed').value);
             const p = parseInt(document.getElementById('pitch').value);
@@ -837,6 +843,7 @@
         document.getElementById('speed').oninput = () => applySettings(false);
         document.getElementById('pitch').oninput = () => applySettings(false);
 
+        // 再生制御
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -870,6 +877,7 @@
         window.resetSetting = (id, val) => { document.getElementById(id).value = val; applySettings(); };
     }
 
+    // キーボード操作（Spaceで再生/停止）
     window.addEventListener('keydown', (e) => { 
         if (e.code === 'Space' && currentMode === 'file') { 
             e.preventDefault(); 
@@ -877,7 +885,7 @@
         } 
     });
     
-    // 修正ポイント2: HTMLの読み込みが完了してから初期化を開始
+    // HTMLの解析が完了したタイミングでアプリを開始
     window.addEventListener('DOMContentLoaded', () => {
         startApp();
     });
