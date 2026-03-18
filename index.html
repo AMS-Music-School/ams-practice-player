@@ -45,6 +45,12 @@
             z-index: 2000; backdrop-filter: blur(10px);
         }
 
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .lang-select { 
+            background: #2a2a2a; color: var(--text-main); border: 1px solid var(--border-color); 
+            border-radius: 4px; font-size: 0.7rem; padding: 2px 5px; outline: none;
+        }
+
         .header-logo { color: var(--primary-color); font-weight: bold; letter-spacing: 2px; font-size: 0.9rem; }
 
         .menu-trigger { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; }
@@ -161,7 +167,7 @@
         .adj-btn { background: #333; border: 1px solid var(--border-color); color: var(--text-main); width: 36px; height: 32px; border-radius: 4px; }
 
         @media (max-width: 360px) {
-            .header-logo { font-size: 0.8rem; letter-spacing: 1px; }
+            .header-logo { display: none; }
             .val-display { min-width: 65px; font-size: 0.9rem; }
             .time-display { font-size: 0.95rem; }
         }
@@ -170,6 +176,16 @@
 <body>
 
 <header>
+    <div class="header-left">
+        <span class="material-icons" style="font-size: 18px; color: var(--text-dim);">public</span>
+        <select class="lang-select" id="langSelect" onchange="changeLang()">
+            <option value="ja">JP</option>
+            <option value="en">EN</option>
+            <option value="zh">ZH</option>
+            <option value="es">ES</option>
+            <option value="ko">KO</option>
+        </select>
+    </div>
     <div class="header-logo">AMS PLAYER</div>
     <button class="menu-trigger" onclick="toggleMenu(true)">
         <span class="material-icons">menu</span>
@@ -179,52 +195,56 @@
 <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu(false)"></div>
 <div class="side-menu" id="sideMenu">
     <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
-        <span style="font-weight:bold; color:var(--primary-color);">MENU</span>
+        <span style="font-weight:bold; color:var(--primary-color);" data-t="menuTitle">MENU</span>
         <button class="menu-trigger" onclick="toggleMenu(false)"><span class="material-icons">close</span></button>
     </div>
     <div style="color:var(--primary-color); font-size:0.7rem; margin-bottom:10px;">HELP</div>
-    <div style="display:flex; align-items:center; gap:10px; color:var(--text-main); padding:10px; cursor:pointer;" onclick="showGuide('file')"><span class="material-icons">description</span> File Mode Guide</div>
-    <div style="display:flex; align-items:center; gap:10px; color:var(--text-main); padding:10px; cursor:pointer;" onclick="showGuide('yt')"><span class="material-icons">smart_display</span> YT Mode Guide</div>
+    <div style="display:flex; align-items:center; gap:10px; color:var(--text-main); padding:10px; cursor:pointer;" onclick="showGuide('file')">
+        <span class="material-icons">description</span> <span data-t="guideFileTitle">File Mode Guide</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; color:var(--text-main); padding:10px; cursor:pointer;" onclick="showGuide('yt')">
+        <span class="material-icons">smart_display</span> <span data-t="guideYtTitle">YT Mode Guide</span>
+    </div>
 </div>
 
 <div id="guideModalFile" class="modal">
     <div style="font-size:0.8rem; color:var(--text-dim); line-height:1.6;">
-        <b style="color:var(--primary-color); display:block; border-bottom:1px solid var(--border-color); margin-bottom:10px;">File Mode Guide</b>
-        音楽ファイルを選択するとBPMが解析されます。波形ドラッグでループ範囲を指定、スピード調整でBPMも変化します。
+        <b style="color:var(--primary-color); display:block; border-bottom:1px solid var(--border-color); margin-bottom:10px;" data-t="guideFileTitle">File Mode Guide</b>
+        <span data-t="guideFileBody">音楽ファイルを選択するとBPMが解析されます。波形ドラッグでループ範囲を指定、スピード調整でBPMも変化します。</span>
     </div>
-    <button class="clear-btn-ja" style="width:100%; margin-top:15px;" onclick="closeModals()">閉じる</button>
+    <button class="clear-btn-ja" style="width:100%; margin-top:15px;" onclick="closeModals()" data-t="close">閉じる</button>
 </div>
 
 <div id="guideModalYT" class="modal">
     <div style="font-size:0.8rem; color:var(--text-dim); line-height:1.6;">
-        <b style="color:var(--primary-color); display:block; border-bottom:1px solid var(--border-color); margin-bottom:10px;">YouTube Mode Guide</b>
-        YouTubeのURLを読み込み、SET START/ENDでループ区間を決めます。LOOPをONにして練習してください。
+        <b style="color:var(--primary-color); display:block; border-bottom:1px solid var(--border-color); margin-bottom:10px;" data-t="guideYtTitle">YouTube Mode Guide</b>
+        <span data-t="guideYtBody">YouTubeのURLを読み込み、SET START/ENDでループ区間を決めます。LOOPをONにして練習してください。</span>
     </div>
-    <button class="clear-btn-ja" style="width:100%; margin-top:15px;" onclick="closeModals()">閉じる</button>
+    <button class="clear-btn-ja" style="width:100%; margin-top:15px;" onclick="closeModals()" data-t="close">閉じる</button>
 </div>
 
 <div class="container">
     <div class="title-area"><h2>AMS Practice Player</h2></div>
 
     <div class="mode-tabs">
-        <button class="tab-btn active" id="tab-file" onclick="switchMode('file')">Audio File</button>
-        <button class="tab-btn" id="tab-yt" onclick="switchMode('yt')">YouTube</button>
+        <button class="tab-btn active" id="tab-file" onclick="switchMode('file')" data-t="tabFile">Audio File</button>
+        <button class="tab-btn" id="tab-yt" onclick="switchMode('yt')" data-t="tabYt">YouTube</button>
     </div>
 
     <div id="file-section" class="content-section active">
         <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .ogg, .flac">
 
         <div class="practice-settings">
-            <label class="opt-label"><input type="checkbox" id="enableCountdown" checked> カウント</label>
-            <label class="opt-label"><input type="checkbox" id="autoSpeedUp"> ループ毎に5%加速</label>
+            <label class="opt-label"><input type="checkbox" id="enableCountdown" checked> <span data-t="optCount">カウント</span></label>
+            <label class="opt-label"><input type="checkbox" id="autoSpeedUp"> <span data-t="optAutoSpeed">ループ毎に5%加速</span></label>
         </div>
 
         <div class="waveform-label">
-            <span id="loadStatus">READY</span>
+            <span id="loadStatus" data-t="statusReady">READY</span>
             <div style="display:flex; align-items:center; gap:5px;">
                 <span class="material-icons" style="font-size:16px;">zoom_in</span>
                 <input type="range" id="zoomSlider" min="0" max="500" value="100" style="width:80px;">
-                <button class="reset-btn" id="resetZoomBtn">全体</button>
+                <button class="reset-btn" id="resetZoomBtn" data-t="zoomReset">全体</button>
             </div>
             <span class="time-display"><span id="currentTime">00:00</span>/<span id="totalTime">00:00</span></span>
             <input type="range" id="modelVol" min="0" max="1" step="0.05" value="0.8" style="width:50px;">
@@ -236,7 +256,7 @@
         </div>
 
         <div style="text-align:center; margin-bottom:10px;">
-            <button class="clear-btn-ja" onclick="wsRegions.clearRegions()">範囲解除</button>
+            <button class="clear-btn-ja" onclick="wsRegions.clearRegions()" data-t="clearRange">範囲解除</button>
         </div>
         
         <div class="transport-controls">
@@ -247,13 +267,13 @@
 
         <div class="panel">
             <div class="row">
-                <div style="font-weight:bold; color:var(--text-dim); font-size:0.75rem; min-width:45px;">Speed</div>
+                <div style="font-weight:bold; color:var(--text-dim); font-size:0.75rem; min-width:45px;" data-t="labelSpeed">Speed</div>
                 <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="1.0">
                 <span id="spTxt" class="val-display">BPM ---</span>
                 <button class="reset-btn" onclick="resetSetting('speed', 1.0)">1.0</button>
             </div>
             <div class="row">
-                <div style="font-weight:bold; color:var(--text-dim); font-size:0.75rem; min-width:45px;">Pitch</div>
+                <div style="font-weight:bold; color:var(--text-dim); font-size:0.75rem; min-width:45px;" data-t="labelPitch">Pitch</div>
                 <input type="range" id="pitch" min="-6" max="6" step="1" value="0">
                 <span id="pitchTxt" class="val-display">±0</span>
                 <button class="reset-btn" onclick="resetSetting('pitch', 0)">0</button>
@@ -281,12 +301,65 @@
                 <span id="loopEndTxt" class="time-display" style="font-size:0.9rem; min-width:45px; text-align:center;">00:00</span>
                 <button class="adj-btn" onclick="adjustTime('end', 1)">+</button>
             </div>
-            <button id="toggleLoopBtn" class="tab-btn" style="width:100%; border:1px solid var(--border-color); margin-top:5px;" onclick="toggleLoop()">LOOP OFF</button>
+            <button id="toggleLoopBtn" class="tab-btn" style="width:100%; border:1px solid var(--border-color); margin-top:5px;" onclick="toggleLoop()" data-t="loopOff">LOOP OFF</button>
         </div>
     </div>
 </div>
 
 <script>
+    const i18n = {
+        ja: {
+            menuTitle: "メニュー", guideFileTitle: "ファイルモード ガイド", guideYtTitle: "YouTubeモード ガイド",
+            guideFileBody: "音楽ファイルを選択するとBPMが解析されます。波形ドラッグでループ範囲を指定、スピード調整でBPMも変化します。",
+            guideYtBody: "YouTubeのURLを読み込み、START/ENDでループ区間を決めます。LOOPをONにして練習してください。",
+            close: "閉じる", tabFile: "オーディオファイル", tabYt: "YouTube", optCount: "カウント", 
+            optAutoSpeed: "ループ毎に5%加速", statusReady: "準備完了", statusLoading: "解析中...", statusError: "エラー",
+            zoomReset: "全体", clearRange: "範囲解除", labelSpeed: "速度", labelPitch: "ピッチ", loopOn: "ループ ON", loopOff: "ループ OFF"
+        },
+        en: {
+            menuTitle: "MENU", guideFileTitle: "File Mode Guide", guideYtTitle: "YouTube Mode Guide",
+            guideFileBody: "BPM is analyzed when you select a file. Drag on waveform to set loop, and speed affects BPM.",
+            guideYtBody: "Load YouTube URL and set START/END points. Turn LOOP ON for practice.",
+            close: "Close", tabFile: "Audio File", tabYt: "YouTube", optCount: "Count", 
+            optAutoSpeed: "Auto Speed Up (+5%)", statusReady: "READY", statusLoading: "Analyzing...", statusError: "ERROR",
+            zoomReset: "Fit", clearRange: "Clear Loop", labelSpeed: "Speed", labelPitch: "Pitch", loopOn: "LOOP ON", loopOff: "LOOP OFF"
+        },
+        zh: {
+            menuTitle: "菜单", guideFileTitle: "文件模式指南", guideYtTitle: "YouTube模式指南",
+            guideFileBody: "选择文件后将分析BPM。在波形上拖動以设置循環，速度調整会影响BPM。",
+            guideYtBody: "加载YouTube URL并设置开始/结束点。开启循环进行练习。",
+            close: "关闭", tabFile: "音频文件", tabYt: "YouTube", optCount: "倒数", 
+            optAutoSpeed: "循环时自动加速 (5%)", statusReady: "准备就绪", statusLoading: "分析中...", statusError: "错误",
+            zoomReset: "重置缩放", clearRange: "清除范围", labelSpeed: "速度", labelPitch: "音高", loopOn: "循环 开启", loopOff: "循环 关闭"
+        },
+        es: {
+            menuTitle: "MENÚ", guideFileTitle: "Guía de Archivos", guideYtTitle: "Guía de YouTube",
+            guideFileBody: "El BPM se analiza al elegir un archivo. Arrastra en la onda para el bucle; la velocidad afecta al BPM.",
+            guideYtBody: "Carga la URL de YouTube y fija inicio/fin. Activa LOOP para practicar.",
+            close: "Cerrar", tabFile: "Archivo Audio", tabYt: "YouTube", optCount: "Cuenta atrás", 
+            optAutoSpeed: "Aceleración automática (5%)", statusReady: "LISTO", statusLoading: "Analizando...", statusError: "ERROR",
+            zoomReset: "Ajustar", clearRange: "Borrar Bucle", labelSpeed: "Velocidad", labelPitch: "Tono", loopOn: "LOOP ON", loopOff: "LOOP OFF"
+        },
+        ko: {
+            menuTitle: "메뉴", guideFileTitle: "파일 모드 가이드", guideYtTitle: "YouTube 모드 가이드",
+            guideFileBody: "파일을 선택하면 BPM이 분석됩니다. 파형을 드래그하여 루프를 설정하세요.",
+            guideYtBody: "YouTube URL을 로드하고 시작/종료 지점을 설정하세요. 루프를 켜서 연습하세요.",
+            close: "닫기", tabFile: "오디오 파일", tabYt: "YouTube", optCount: "카운트", 
+            optAutoSpeed: "루프마다 5% 가속", statusReady: "준비됨", statusLoading: "분석 중...", statusError: "오류",
+            zoomReset: "전체보기", clearRange: "범위 해제", labelSpeed: "속도", labelPitch: "피치", loopOn: "루프 켬", loopOff: "루프 끔"
+        }
+    };
+
+    function changeLang() {
+        const lang = document.getElementById('langSelect').value;
+        const dict = i18n[lang];
+        document.querySelectorAll('[data-t]').forEach(el => {
+            const key = el.getAttribute('data-t');
+            if (dict[key]) el.innerText = dict[key];
+        });
+        updateBpmDisplay();
+    }
+
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
     let audioCtx, firstSoundTime = 0, originalBpm = 120, currentObjectURL = null;
@@ -315,7 +388,8 @@
     }
 
     async function analyzeAudio(file) {
-        document.getElementById('loadStatus').innerText = "解析中...";
+        const dict = i18n[document.getElementById('langSelect').value];
+        document.getElementById('loadStatus').innerText = dict.statusLoading;
         const tCtx = new (window.AudioContext || window.webkitAudioContext)();
         try {
             const buf = await tCtx.decodeAudioData(await file.arrayBuffer());
@@ -324,9 +398,9 @@
             const bpm = detectBPM(buf);
             originalBpm = (bpm > 50 && bpm < 250) ? Math.round(bpm) : 120;
             updateBpmDisplay();
-            document.getElementById('loadStatus').innerText = "COMPLETE";
+            document.getElementById('loadStatus').innerText = dict.statusReady;
             if(wavesurfer) wavesurfer.setTime(firstSoundTime);
-        } catch (e) { document.getElementById('loadStatus').innerText = "ERROR"; } finally { tCtx.close(); }
+        } catch (e) { document.getElementById('loadStatus').innerText = dict.statusError; } finally { tCtx.close(); }
     }
 
     function detectBPM(buffer) {
@@ -375,7 +449,13 @@
         if(t==='start'){ loopStart=Math.max(0,loopStart+a); document.getElementById('loopStartTxt').innerText=fmt(loopStart); ytPlayer.seekTo(loopStart); }
         else { loopEnd=Math.max(0,loopEnd+a); document.getElementById('loopEndTxt').innerText=fmt(loopEnd); }
     }
-    function toggleLoop() { isLooping=!isLooping; const b=document.getElementById('toggleLoopBtn'); b.innerText=isLooping?"LOOP ON":"LOOP OFF"; b.style.background=isLooping? "var(--primary-color)":"transparent"; }
+    function toggleLoop() { 
+        isLooping=!isLooping; 
+        const b=document.getElementById('toggleLoopBtn');
+        const dict = i18n[document.getElementById('langSelect').value];
+        b.innerText = isLooping ? dict.loopOn : dict.loopOff;
+        b.style.background = isLooping ? "var(--primary-color)" : "transparent"; 
+    }
 
     function startApp() {
         wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true });
@@ -431,6 +511,9 @@
         document.getElementById('pitch').oninput = apply;
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
         window.resetSetting = (id, v) => { document.getElementById(id).value = v; apply(); };
+        
+        // 初回の言語セット
+        changeLang();
     }
     startApp();
 </script>
