@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.3" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.3">
+    <link rel="icon" href="icon.png?v=1.0.6" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.6">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -31,395 +31,125 @@
         body { 
             background-color: var(--bg-dark);
             color: var(--text-main);
-            font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
-            padding: 0; 
-            margin: 0; 
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            padding: 0; margin: 0; 
             overscroll-behavior-y: contain;
             padding-top: var(--header-height);
         }
 
         header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: var(--header-height);
-            background: rgba(18, 18, 18, 0.95);
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 20px;
-            z-index: 2000;
-            backdrop-filter: blur(10px);
+            position: fixed; top: 0; left: 0; width: 100%; height: var(--header-height);
+            background: rgba(18, 18, 18, 0.95); border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between; padding: 0 20px;
+            z-index: 2000; backdrop-filter: blur(10px);
         }
 
-        .header-logo {
-            color: var(--primary-color);
-            font-weight: bold;
-            letter-spacing: 2px;
-            font-size: 1rem;
+        .header-logo { color: var(--primary-color); font-weight: bold; letter-spacing: 2px; }
+
+        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        #waveform-wrapper { 
+            position: relative; background: #000; border: 1px solid var(--border-color); 
+            border-radius: 8px; margin-bottom: 15px; overflow: hidden;
+        }
+        
+        .waveform-label { 
+            font-size: 0.8em; color: var(--text-dim); margin-bottom: 10px; 
+            display: flex; justify-content: space-between; align-items: center;
         }
 
-        .menu-trigger {
-            background: none;
-            border: none;
-            color: var(--text-main);
-            cursor: pointer;
-            padding: 5px;
+        .time-display { color: var(--primary-color); font-weight: bold; font-size: 1.2em; }
+
+        .panel { 
+            background: var(--panel-bg); padding: 20px; border-radius: 16px; 
+            border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 15px;
         }
+
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+
+        input[type="range"] { flex-grow: 1; accent-color: var(--primary-color); height: 6px; }
+
+        .val-display { color: var(--primary-color); font-weight: bold; min-width: 100px; text-align: right; font-size: 1.1em; }
+        
+        .transport-controls { 
+            display: flex; justify-content: center; align-items: center; gap: 15px; margin: 25px 0; 
+        }
+        .btn-ctrl { 
+            background: var(--panel-bg); color: var(--text-dim); border: 1px solid var(--border-color); 
+            border-radius: 50%; width: 55px; height: 55px; display: flex; align-items: center; 
+            justify-content: center; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); box-shadow: 0 0 8px rgba(212, 163, 115, 0.3); }
+        .play-main { background: var(--primary-color); color: #121212 !important; width: 75px; height: 75px; border: none; }
+
+        input[type="file"] { width: 100%; padding: 15px; border: 2px dashed var(--border-color); border-radius: 10px; margin-bottom: 15px; background: #181818; color: #888; }
+
+        #countdown-overlay { 
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            font-size: 100px; color: var(--primary-color); font-weight: bold; z-index: 1000; 
+            display: none; text-shadow: 0 0 20px rgba(0,0,0,0.8); pointer-events: none;
+        }
+
+        .reset-btn { background: #333; border: none; color: #999; padding: 2px 8px; border-radius: 4px; font-size: 0.7em; cursor: pointer; }
+
+        .menu-trigger { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; }
 
         .side-menu {
-            position: fixed;
-            top: 0;
-            right: -300px;
-            width: 300px;
-            height: 100%;
-            background: var(--panel-bg);
-            z-index: 3000;
-            transition: right 0.3s ease;
-            box-shadow: -5px 0 15px rgba(0,0,0,0.5);
-            padding: 20px;
+            position: fixed; top: 0; right: -300px; width: 300px; height: 100%;
+            background: var(--panel-bg); z-index: 3000; transition: right 0.3s ease;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.5); padding: 20px;
         }
 
         .side-menu.open { right: 0; }
 
         .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 2500;
-            display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 2500; display: none;
         }
 
         .menu-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;
         }
 
-        .menu-section-title {
-            font-size: 0.8em;
-            color: var(--primary-color);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
-            display: block;
-        }
-
+        .menu-section-title { font-size: 0.8em; color: var(--primary-color); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 15px; display: block; }
+        
         .menu-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--text-main);
-            padding: 12px;
-            text-decoration: none;
-            border-radius: 8px;
-            margin-bottom: 5px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 0.95em;
+            display: flex; align-items: center; gap: 12px; color: var(--text-main); padding: 12px;
+            text-decoration: none; border-radius: 8px; margin-bottom: 5px; cursor: pointer; transition: background 0.2s; font-size: 0.95em;
         }
-
         .menu-item:hover { background: #333; }
 
         .modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 500px;
-            background: var(--panel-bg);
-            border: 1px solid var(--primary-color);
-            border-radius: 16px;
-            z-index: 4000;
-            padding: 25px;
-            box-shadow: 0 0 50px rgba(0,0,0,1);
+            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90%; max-width: 500px; background: var(--panel-bg); border: 1px solid var(--primary-color);
+            border-radius: 16px; z-index: 4000; padding: 25px; box-shadow: 0 0 50px rgba(0,0,0,1);
         }
 
-        .container { 
-            width: 100%; 
-            max-width: 1200px; 
-            margin: 0 auto; 
-            background: var(--bg-dark); 
-            padding: 20px 20px 40px 20px;
-        }
-        
         .title-area { text-align: center; margin-bottom: 25px; }
-        .title-area h2 { 
-            color: var(--primary-color); 
-            font-size: 1.1rem; 
-            letter-spacing: 6px; 
-            margin: 0; 
-            font-weight: bold; 
-            text-transform: uppercase; 
-        }
+        .title-area h2 { color: var(--primary-color); font-size: 1.1rem; letter-spacing: 6px; margin: 0; font-weight: bold; text-transform: uppercase; }
 
-        .mode-tabs { 
-            display: flex; 
-            justify-content: center; 
-            gap: 5px; 
-            margin-bottom: 25px; 
-            background: var(--panel-bg); 
-            padding: 4px; 
-            border-radius: 12px; 
-            border: 1px solid var(--border-color);
-            max-width: 600px; 
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .tab-btn { 
-            background: transparent; 
-            border: none; 
-            color: var(--text-dim); 
-            padding: 10px; 
-            cursor: pointer; 
-            border-radius: 8px; 
-            font-size: 0.85em; 
-            flex: 1;
-            transition: all 0.3s ease; 
-        }
-        .tab-btn.active { 
-            background: var(--primary-color); 
-            color: #121212; 
-            font-weight: bold; 
-        }
+        .mode-tabs { display: flex; justify-content: center; gap: 5px; margin-bottom: 25px; background: var(--panel-bg); padding: 4px; border-radius: 12px; border: 1px solid var(--border-color); max-width: 600px; margin-left: auto; margin-right: auto; }
+        .tab-btn { background: transparent; border: none; color: var(--text-dim); padding: 10px; cursor: pointer; border-radius: 8px; font-size: 0.85em; flex: 1; transition: all 0.3s ease; }
+        .tab-btn.active { background: var(--primary-color); color: #121212; font-weight: bold; }
 
         .content-section { display: none; }
         .content-section.active { display: block; }
 
-        #waveform-wrapper { 
-            position: relative; 
-            background: #000; 
-            border: 1px solid var(--border-color); 
-            border-radius: 8px;
-            margin-bottom: 10px; 
-            overflow: hidden;
-            touch-action: none;
-        }
-        
-        .waveform-label { 
-            font-size: 0.8em; 
-            color: var(--text-dim); 
-            margin-bottom: 12px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            letter-spacing: 1px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
+        .clear-btn-container { margin-bottom: 10px; text-align: center; }
+        .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 8px 18px; border-radius: 20px; font-size: 0.8em; cursor: pointer; }
 
-        .time-display { 
-            font-family: "Courier New", Courier, monospace; 
-            color: var(--primary-color); 
-            font-weight: bold; 
-            font-size: 1.3em;
-            background: transparent;
-            padding: 0;
-        }
-
-        .panel { 
-            background: var(--panel-bg); 
-            padding: 22px; 
-            border-radius: 16px; 
-            border: 1px solid var(--border-color); 
-            display: flex; 
-            flex-direction: column; 
-            gap: 20px; 
-            margin-bottom: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .row { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
-
-        input[type="range"] { 
-            flex-grow: 1; 
-            accent-color: var(--primary-color); 
-            cursor: pointer; 
-            height: 6px;
-            border-radius: 3px;
-            background: #444;
-            -webkit-appearance: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
-            background: var(--primary-color);
-            border-radius: 50%;
-            border: 2px solid #fff;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.6);
-        }
-
-        .val-display { color: var(--primary-color); font-weight: bold; min-width: 65px; text-align: right; font-size: 1.2em; }
-        
-        .transport-controls { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 25px; 
-            margin: 25px 0; 
-            background: transparent;
-            padding: 0;
-        }
-        .btn-ctrl { 
-            background: var(--panel-bg); 
-            color: var(--text-main); 
-            border: 1px solid var(--border-color); 
-            border-radius: 50%; 
-            width: 55px; 
-            height: 55px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        }
-        .play-main { 
-            background: var(--primary-color); 
-            color: #121212; 
-            border: none; 
-            width: 75px; 
-            height: 75px; 
-        }
-
-        .reset-btn { 
-            background: #333; 
-            border: none; 
-            color: var(--text-dim); 
-            padding: 4px 10px; 
-            border-radius: 4px; 
-            font-size: 0.7em; 
-            cursor: pointer; 
-            margin-left: 5px;
-        }
-        
-        .practice-settings { 
-            background: var(--panel-bg); 
-            border: 1px solid var(--border-color); 
-            padding: 15px; 
-            margin-bottom: 20px; 
-            border-radius: 12px; 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 12px; 
-            align-items: center; 
-            justify-content: space-around; 
-        }
-        .opt-label { font-size: 0.85em; font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
-        .num-input { 
-            width: 60px; 
-            background: #000; 
-            color: var(--primary-color); 
-            border: 1px solid var(--border-color); 
-            padding: 6px; 
-            border-radius: 6px; 
-            text-align: center; 
-            font-weight: bold; 
-            font-size: 1em;
-        }
-
-        input[type="file"] { 
-            width: 100%; 
-            padding: 18px; 
-            border: 2px dashed var(--border-color); 
-            border-radius: 12px; 
-            margin-bottom: 20px; 
-            color: var(--text-dim); 
-            background: #181818;
-            font-size: 0.9em;
-        }
-
-        .clear-btn-container { margin-bottom: 10px; }
-        .clear-btn-ja { 
-            background: #333; 
-            border: none; 
-            color: var(--text-main); 
-            padding: 8px 18px; 
-            border-radius: 20px; 
-            font-size: 0.8em; 
-            cursor: pointer;
-        }
-
-        .guide-box-inner { 
-            font-size: 0.85em; 
-            color: var(--text-dim); 
-            line-height: 1.7; 
-        }
+        .guide-box-inner { font-size: 0.85em; color: var(--text-dim); line-height: 1.7; }
         .guide-box-inner b { color: var(--primary-color); font-size: 1.1em; display: block; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
         .guide-box-inner ul { padding-left: 20px; margin: 0; }
 
-        #countdown-overlay { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-            font-size: 120px; color: var(--primary-color); font-weight: bold; z-index: 1000; 
-            display: none; pointer-events: none; text-shadow: 0 0 30px rgba(0,0,0,0.9);
-        }
+        #ytPlayerContainer { position: relative; width: 100%; max-width: 900px; margin: 0 auto; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 10px 30px rgba(0,0,0,0.5); background: #000; }
+        #ytPlayerContainer iframe { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }
 
-        #ytPlayerContainer { 
-            position: relative;
-            width: 100%;
-            max-width: 900px;
-            margin: 0 auto;
-            aspect-ratio: 16 / 9; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            border: 1px solid var(--border-color);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            background: #000;
-        }
-        #ytPlayerContainer iframe {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100% !important;
-            height: 100% !important;
-        }
-
-        .loop-btn-main { 
-            background: var(--primary-color); 
-            color: #121212; 
-            border: none; 
-            padding: 10px 18px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-size: 0.85em; 
-            font-weight: bold;
-            min-width: 100px; 
-        }
-
-        .adj-btn { 
-            background: #333; 
-            border: 1px solid var(--border-color); 
-            color: var(--text-main); 
-            width: 44px; 
-            height: 36px; 
-            border-radius: 4px; 
-            cursor: pointer; 
-        }
-
-        #toggleLoopBtn {
-            background: #2a2a2a;
-            color: var(--text-dim);
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-        }
-
-        #toggleLoopBtn.active {
-            background: var(--primary-color);
-            color: #121212;
-            border: 1px solid var(--primary-color);
-            font-weight: bold;
-            box-shadow: 0 0 10px rgba(212, 163, 115, 0.4);
-        }
+        .loop-btn-main { background: var(--primary-color); color: #121212; border: none; padding: 10px 18px; border-radius: 6px; cursor: pointer; font-size: 0.85em; font-weight: bold; min-width: 100px; }
+        .adj-btn { background: #333; border: 1px solid var(--border-color); color: var(--text-main); width: 44px; height: 36px; border-radius: 4px; cursor: pointer; }
+        #toggleLoopBtn { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border-color); transition: all 0.3s ease; }
+        #toggleLoopBtn.active { background: var(--primary-color); color: #121212; border: 1px solid var(--primary-color); font-weight: bold; box-shadow: 0 0 10px rgba(212, 163, 115, 0.4); }
         
         #timeline { display: none !important; }
     </style>
@@ -441,7 +171,6 @@
             <span class="material-icons">close</span>
         </button>
     </div>
-    
     <span class="menu-section-title">Help & Guide</span>
     <div class="menu-item" onclick="showGuide('file')">
         <span class="material-icons">description</span>
@@ -458,7 +187,7 @@
         <b>【Audio File Mode】操作ガイド</b>
         <ul>
             <li><b>ファイル選択:</b> デバイス内の音楽ファイルを選択してください。BPMと無音部分を自動解析します。</li>
-            <li><b>BPM連動:</b> BPM数値を手入力すると速度が変わります。速度を変えるとBPMが計算されます。</li>
+            <li><b>スピード調整:</b> スライダーで再生速度を変更できます。</li>
             <li><b>ループ設定:</b> 波形をドラッグして範囲を選択すると、その区間が繰り返し再生されます。</li>
             <li><b>ズーム:</b> バーの中央を標準とし、左端で全体表示、右端で詳細拡大ができます。</li>
         </ul>
@@ -488,12 +217,6 @@
     <div id="file-section" class="content-section active">
         <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .mp4, .ogg, .flac, .webma">
 
-        <div class="practice-settings">
-            <label class="opt-label"><input type="checkbox" id="enableCountdown" checked> カウント</label>
-            <label class="opt-label">BPM: <input type="number" id="bpmInput" class="num-input" value="120" min="40" max="300"></label>
-            <label class="opt-label"><input type="checkbox" id="autoSpeedUp"> ループ毎に5%加速</label>
-        </div>
-
         <div class="waveform-label">
             <span id="loadStatus">READY</span>
             <div style="display:flex; align-items:center; gap:8px;">
@@ -514,23 +237,29 @@
             <div id="timeline"></div>
         </div>
 
-        <div class="clear-btn-container" style="text-align:center;">
+        <div class="clear-btn-container">
             <button class="clear-btn-ja" onclick="wsRegions.clearRegions()">
                 <span class="material-icons" style="font-size:16px; vertical-align:middle;">layers_clear</span> 範囲解除
             </button>
         </div>
         
         <div class="transport-controls">
+            <button class="btn-ctrl active" id="countToggleBtn" onclick="toggleFeature('count')">
+                <span class="material-icons">timer</span>
+            </button>
             <button class="btn-ctrl" onclick="wavesurfer.skip(-5)"><span class="material-icons">replay_5</span></button>
             <button class="btn-ctrl play-main" id="playBtn"><span class="material-icons" id="playIcon" style="font-size:45px;">play_arrow</span></button>
             <button class="btn-ctrl" onclick="wavesurfer.skip(5)"><span class="material-icons">forward_5</span></button>
+            <button class="btn-ctrl" id="speedUpToggleBtn" onclick="toggleFeature('speedup')">
+                <span class="material-icons">speed</span>
+            </button>
         </div>
 
         <div class="panel">
             <div class="row">
                 <div style="min-width:85px; font-weight:bold; color:var(--text-dim); font-size:0.9em;">Speed <button class="reset-btn" onclick="resetSetting('speed', 1.0)">Reset</button></div>
                 <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="1.0">
-                <span id="spTxt" class="val-display">1.00x</span>
+                <span id="spTxt" class="val-display">BPM 120</span>
             </div>
             <div class="row">
                 <div style="min-width:85px; font-weight:bold; color:var(--text-dim); font-size:0.9em;">Pitch <button class="reset-btn" onclick="resetSetting('pitch', 0)">Reset</button></div>
@@ -572,7 +301,7 @@
 </div>
 
 <script>
-    console.log("App Version: 1.0.3 (Redesigned Zoom Logic)");
+    console.log("App Version: 1.0.6 (Removed redundant BPM display overhead, wired toggle functions)");
 
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
@@ -598,6 +327,19 @@
     let audioCtx, firstSoundTime = 0;
     let originalBpm = 120;
     let currentObjectURL = null;
+    let isCountEnabled = true;
+    let isSpeedUpEnabled = false;
+
+    // 機能のトグルをUIのアイコンと連動
+    function toggleFeature(type) {
+        if (type === 'count') {
+            isCountEnabled = !isCountEnabled;
+            document.getElementById('countToggleBtn').classList.toggle('active', isCountEnabled);
+        } else if (type === 'speedup') {
+            isSpeedUpEnabled = !isSpeedUpEnabled;
+            document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled);
+        }
+    }
 
     function switchMode(mode) {
         currentMode = mode;
@@ -624,13 +366,19 @@
             const bpm = detectBPM(audioBuffer);
             if (bpm > 0) {
                 originalBpm = Math.round(bpm);
-                document.getElementById('bpmInput').value = originalBpm;
+                updateBpmDisplay(); 
             }
             document.getElementById('loadStatus').innerText = "COMPLETE";
             if(wavesurfer && wavesurfer.isReady) wavesurfer.setTime(firstSoundTime);
         } catch (e) {
             document.getElementById('loadStatus').innerText = "READY";
         } finally { tempCtx.close(); }
+    }
+
+    function updateBpmDisplay() {
+        const currentSpeed = parseFloat(document.getElementById('speed').value);
+        const currentBpm = Math.round(originalBpm * currentSpeed);
+        document.getElementById('spTxt').innerText = "BPM " + currentBpm;
     }
 
     function detectBPM(buffer) {
@@ -672,9 +420,10 @@
     }
 
     async function runCountdown() {
-        if (!document.getElementById('enableCountdown').checked) return true;
-        const bpm = parseInt(document.getElementById('bpmInput').value) || 120;
-        const interval = 60000 / bpm;
+        if (!isCountEnabled) return true;
+        const currentSpeed = parseFloat(document.getElementById('speed').value);
+        const currentBpm = originalBpm * currentSpeed;
+        const interval = 60000 / currentBpm;
         const overlay = document.getElementById('countdown-overlay');
         overlay.style.display = 'block';
         for (let i = 1; i <= 4; i++) {
@@ -687,7 +436,7 @@
     }
 
     function applySpeedUp() {
-        if (!document.getElementById('autoSpeedUp').checked) return;
+        if (!isSpeedUpEnabled) return;
         const s = document.getElementById('speed');
         const newVal = Math.min(1.5, parseFloat(s.value) + 0.05);
         s.value = newVal.toFixed(2);
@@ -731,7 +480,7 @@
             barWidth: 2, 
             normalize: true, 
             cursorColor: '#fff',
-            minPxPerSec: 0, // 全体表示を可能にするため0に
+            minPxPerSec: 0, 
             hideScrollbar: false,
             autoCenter: true
         });
@@ -744,13 +493,12 @@
             wavesurfer.setTime(r.start); 
         });
 
-        // --- ズーム制御ロジックの再構築 ---
         const zoomSlider = document.getElementById('zoomSlider');
         const performZoom = (level) => {
             const val = Math.max(0, Math.min(500, level));
             zoomSlider.value = val;
             if (val == 0) {
-                wavesurfer.zoom(0); // 最小値で全体表示
+                wavesurfer.zoom(0); 
             } else {
                 wavesurfer.zoom(val); 
             }
@@ -801,22 +549,12 @@
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime);
-            // 読み込み完了時、現在のスライダー値（初期値100）でズーム適用
             performZoom(Number(zoomSlider.value));
         });
         
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
 
-        document.getElementById('bpmInput').oninput = (e) => {
-            let targetBpm = parseFloat(e.target.value);
-            if (!targetBpm || targetBpm <= 0) return;
-            let calculatedSpeed = targetBpm / originalBpm;
-            calculatedSpeed = Math.max(0.5, Math.min(1.5, calculatedSpeed));
-            document.getElementById('speed').value = calculatedSpeed.toFixed(2);
-            applySettings(true);
-        };
-
-        applySettings = (skipBpmUpdate = false) => {
+        applySettings = () => {
             const s = parseFloat(document.getElementById('speed').value);
             const p = parseInt(document.getElementById('pitch').value);
             const media = wavesurfer.getMediaElement();
@@ -835,13 +573,12 @@
                     }
                 }
             }
-            document.getElementById('spTxt').innerText = s.toFixed(2) + "x"; 
+            updateBpmDisplay();
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
-            if (!skipBpmUpdate) document.getElementById('bpmInput').value = Math.round(originalBpm * s);
         };
 
-        document.getElementById('speed').oninput = () => applySettings(false);
-        document.getElementById('pitch').oninput = () => applySettings(false);
+        document.getElementById('speed').oninput = () => applySettings();
+        document.getElementById('pitch').oninput = () => applySettings();
 
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -850,7 +587,7 @@
             else {
                 const current = wavesurfer.getCurrentTime();
                 const region = wsRegions.getRegions()[0];
-                if (document.getElementById('enableCountdown').checked) {
+                if (isCountEnabled) {
                     if (region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
                     else if (!region && current < firstSoundTime) wavesurfer.setTime(firstSoundTime);
                 }
