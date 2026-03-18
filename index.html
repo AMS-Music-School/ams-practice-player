@@ -45,6 +45,12 @@
             z-index: 2000; backdrop-filter: blur(10px);
         }
 
+        .header-left { display: flex; align-items: center; gap: 10px; }
+        .lang-select { 
+            background: #2a2a2a; color: var(--text-main); border: 1px solid var(--border-color); 
+            border-radius: 4px; font-size: 0.7rem; padding: 2px 5px; outline: none;
+        }
+
         .header-logo { color: var(--primary-color); font-weight: bold; letter-spacing: 2px; font-size: 0.9rem; }
 
         .menu-trigger { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; }
@@ -55,18 +61,6 @@
             box-shadow: -5px 0 15px rgba(0,0,0,0.5); padding: 20px;
         }
         .side-menu.open { right: 0; }
-
-        .menu-header {
-            display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;
-        }
-
-        /* メニュー内の言語選択スタイル */
-        .menu-lang-wrapper { display: flex; align-items: center; gap: 5px; }
-        .lang-select { 
-            background: #2a2a2a; color: var(--text-main); border: 1px solid var(--border-color); 
-            border-radius: 4px; font-size: 0.75rem; padding: 2px 4px; outline: none;
-        }
 
         .menu-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -173,7 +167,7 @@
         .adj-btn { background: #333; border: 1px solid var(--border-color); color: var(--text-main); width: 36px; height: 32px; border-radius: 4px; }
 
         @media (max-width: 360px) {
-            .header-logo { font-size: 0.8rem; letter-spacing: 1px; }
+            .header-logo { display: none; }
             .val-display { min-width: 65px; font-size: 0.9rem; }
             .time-display { font-size: 0.95rem; }
         }
@@ -182,6 +176,16 @@
 <body>
 
 <header>
+    <div class="header-left">
+        <span class="material-icons" style="font-size: 18px; color: var(--text-dim);">public</span>
+        <select class="lang-select" id="langSelect" onchange="changeLang()">
+            <option value="ja">JP</option>
+            <option value="en">EN</option>
+            <option value="zh">ZH</option>
+            <option value="es">ES</option>
+            <option value="ko">KO</option>
+        </select>
+    </div>
     <div class="header-logo">AMS PLAYER</div>
     <button class="menu-trigger" onclick="toggleMenu(true)">
         <span class="material-icons">menu</span>
@@ -190,21 +194,10 @@
 
 <div class="menu-overlay" id="menuOverlay" onclick="toggleMenu(false)"></div>
 <div class="side-menu" id="sideMenu">
-    <div class="menu-header">
-        <div class="menu-lang-wrapper">
-            <span class="material-icons" style="font-size: 16px; color: var(--text-dim);">public</span>
-            <select class="lang-select" id="langSelect" onchange="changeLang()">
-                <option value="ja">JP</option>
-                <option value="en">EN</option>
-                <option value="zh">ZH</option>
-                <option value="es">ES</option>
-                <option value="ko">KO</option>
-            </select>
-            <span style="font-weight:bold; color:var(--primary-color); margin-left:5px;" data-t="menuTitle">MENU</span>
-        </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
+        <span style="font-weight:bold; color:var(--primary-color);" data-t="menuTitle">MENU</span>
         <button class="menu-trigger" onclick="toggleMenu(false)"><span class="material-icons">close</span></button>
     </div>
-    
     <div style="color:var(--primary-color); font-size:0.7rem; margin-bottom:10px;">HELP</div>
     <div style="display:flex; align-items:center; gap:10px; color:var(--text-main); padding:10px; cursor:pointer;" onclick="showGuide('file')">
         <span class="material-icons">description</span> <span data-t="guideFileTitle">File Mode Guide</span>
@@ -519,6 +512,7 @@
         document.getElementById('modelVol').oninput = e => wavesurfer.setVolume(e.target.value);
         window.resetSetting = (id, v) => { document.getElementById(id).value = v; apply(); };
         
+        // 初回の言語セット
         changeLang();
     }
     startApp();
