@@ -61,6 +61,7 @@
             border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;
         }
 
+        /* メニュー内の言語選択スタイル */
         .menu-lang-wrapper { display: flex; align-items: center; gap: 5px; }
         .lang-select { 
             background: #2a2a2a; color: var(--text-main); border: 1px solid var(--border-color); 
@@ -153,17 +154,10 @@
         }
         .opt-label { font-size: 0.8rem; font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 
-        /* カスタムファイル入力 */
-        .file-input-wrapper {
-            margin-bottom: 15px;
+        input[type="file"] { 
+            width: 100%; padding: 15px; border: 2px dashed var(--border-color); 
+            border-radius: 12px; margin-bottom: 15px; color: var(--text-dim); background: #181818; font-size: 0.8rem;
         }
-        #audioFile { display: none; }
-        .custom-file-btn {
-            display: block; width: 100%; padding: 15px; border: 2px dashed var(--border-color); 
-            border-radius: 12px; color: var(--text-dim); background: #181818; font-size: 0.8rem;
-            text-align: center; cursor: pointer; transition: border-color 0.3s;
-        }
-        .custom-file-btn:active { border-color: var(--primary-color); }
 
         .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 8px 15px; border-radius: 20px; font-size: 0.75rem; }
 
@@ -245,12 +239,7 @@
     </div>
 
     <div id="file-section" class="content-section active">
-        <div class="file-input-wrapper">
-            <label for="audioFile" class="custom-file-btn" id="fileBtnLabel" data-t="btnSelectFile">
-                オーディオファイルを選択
-            </label>
-            <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .ogg, .flac">
-        </div>
+        <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .ogg, .flac">
 
         <div class="practice-settings">
             <label class="opt-label"><input type="checkbox" id="enableCountdown" checked> <span data-t="optCount">カウント</span></label>
@@ -332,8 +321,7 @@
             guideYtBody: "YouTubeのURLを読み込み、START/ENDでループ区間を決めます。LOOPをONにして練習してください。",
             close: "閉じる", tabFile: "オーディオファイル", tabYt: "YouTube", optCount: "カウント", 
             optAutoSpeed: "ループ毎に5%加速", statusReady: "準備完了", statusLoading: "解析中...", statusError: "エラー",
-            zoomReset: "全体", clearRange: "範囲解除", labelSpeed: "速度", labelPitch: "ピッチ", loopOn: "ループ ON", loopOff: "ループ OFF",
-            btnSelectFile: "オーディオファイルを選択"
+            zoomReset: "全体", clearRange: "範囲解除", labelSpeed: "速度", labelPitch: "ピッチ", loopOn: "ループ ON", loopOff: "ループ OFF"
         },
         en: {
             menuTitle: "MENU", guideFileTitle: "File Mode Guide", guideYtTitle: "YouTube Mode Guide",
@@ -341,8 +329,7 @@
             guideYtBody: "Load YouTube URL and set START/END points. Turn LOOP ON for practice.",
             close: "Close", tabFile: "Audio File", tabYt: "YouTube", optCount: "Count", 
             optAutoSpeed: "Auto Speed Up (+5%)", statusReady: "READY", statusLoading: "Analyzing...", statusError: "ERROR",
-            zoomReset: "Fit", clearRange: "Clear Loop", labelSpeed: "Speed", labelPitch: "Pitch", loopOn: "LOOP ON", loopOff: "LOOP OFF",
-            btnSelectFile: "Select Audio File"
+            zoomReset: "Fit", clearRange: "Clear Loop", labelSpeed: "Speed", labelPitch: "Pitch", loopOn: "LOOP ON", loopOff: "LOOP OFF"
         },
         zh: {
             menuTitle: "菜单", guideFileTitle: "文件模式指南", guideYtTitle: "YouTube模式指南",
@@ -350,8 +337,7 @@
             guideYtBody: "加载YouTube URL并设置开始/结束点。开启循环进行练习。",
             close: "关闭", tabFile: "音频文件", tabYt: "YouTube", optCount: "倒数", 
             optAutoSpeed: "循环时自动加速 (5%)", statusReady: "准备就绪", statusLoading: "分析中...", statusError: "错误",
-            zoomReset: "重置缩放", clearRange: "清除范围", labelSpeed: "速度", labelPitch: "音高", loopOn: "循环 开启", loopOff: "循环 关闭",
-            btnSelectFile: "选择音频文件"
+            zoomReset: "重置缩放", clearRange: "清除范围", labelSpeed: "速度", labelPitch: "音高", loopOn: "循环 开启", loopOff: "循环 关闭"
         },
         es: {
             menuTitle: "MENÚ", guideFileTitle: "Guía de Archivos", guideYtTitle: "Guía de YouTube",
@@ -359,8 +345,7 @@
             guideYtBody: "Carga la URL de YouTube y fija inicio/fin. Activa LOOP para practicar.",
             close: "Cerrar", tabFile: "Archivo Audio", tabYt: "YouTube", optCount: "Cuenta atrás", 
             optAutoSpeed: "Aceleración automática (5%)", statusReady: "LISTO", statusLoading: "Analizando...", statusError: "ERROR",
-            zoomReset: "Ajustar", clearRange: "Borrar Bucle", labelSpeed: "Velocidad", labelPitch: "Tono", loopOn: "LOOP ON", loopOff: "LOOP OFF",
-            btnSelectFile: "Seleccionar archivo de audio"
+            zoomReset: "Ajustar", clearRange: "Borrar Bucle", labelSpeed: "Velocidad", labelPitch: "Tono", loopOn: "LOOP ON", loopOff: "LOOP OFF"
         },
         ko: {
             menuTitle: "메뉴", guideFileTitle: "파일 모드 가이드", guideYtTitle: "YouTube 모드 가이드",
@@ -368,8 +353,7 @@
             guideYtBody: "YouTube URL을 로드하고 시작/종료 지점을 설정하세요. 루프를 켜서 연습하세요.",
             close: "닫기", tabFile: "오디오 파일", tabYt: "YouTube", optCount: "카운트", 
             optAutoSpeed: "루프마다 5% 가속", statusReady: "준비됨", statusLoading: "분석 중...", statusError: "오류",
-            zoomReset: "전체보기", clearRange: "범위 해제", labelSpeed: "속도", labelPitch: "피치", loopOn: "루프 켬", loopOff: "루프 끔",
-            btnSelectFile: "오디오 파일 선택"
+            zoomReset: "전체보기", clearRange: "범위 해제", labelSpeed: "속도", labelPitch: "피치", loopOn: "루프 켬", loopOff: "루프 끔"
         }
     };
 
@@ -488,14 +472,7 @@
 
         document.getElementById('audioFile').onchange = e => {
             const f = e.target.files[0];
-            if(f) { 
-                if(currentObjectURL) URL.revokeObjectURL(currentObjectURL); 
-                currentObjectURL=URL.createObjectURL(f); 
-                analyzeAudio(f); 
-                wavesurfer.load(currentObjectURL);
-                // ファイル名を表示
-                document.getElementById('fileBtnLabel').innerText = f.name;
-            }
+            if(f) { if(currentObjectURL) URL.revokeObjectURL(currentObjectURL); currentObjectURL=URL.createObjectURL(f); analyzeAudio(f); wavesurfer.load(currentObjectURL); }
         };
 
         const apply = () => {
