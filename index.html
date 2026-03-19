@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.6" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.6">
+    <link rel="icon" href="icon.png?v=1.0.7" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.7">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -387,7 +387,6 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
-    // --- 曲ごとのABループ保存 ---
     function saveLoop() {
         if (!currentFileName) return alert("Please load an audio file first.");
         const region = wsRegions.getRegions()[0];
@@ -396,7 +395,7 @@
         if (name) {
             if (!allSavedLoops[currentFileName]) allSavedLoops[currentFileName] = [];
             allSavedLoops[currentFileName].push({ name, start: region.start, end: region.end });
-            localStorage.setItem('ams_saved_loops_v2', JSON.stringify(allSavedLoops));
+            localStorage.setItem('ams_saved_loops_v3', JSON.stringify(allSavedLoops));
             renderLoopList();
         }
     }
@@ -423,11 +422,10 @@
     function deleteLoop(index) {
         allSavedLoops[currentFileName].splice(index, 1);
         if (allSavedLoops[currentFileName].length === 0) delete allSavedLoops[currentFileName];
-        localStorage.setItem('ams_saved_loops_v2', JSON.stringify(allSavedLoops));
+        localStorage.setItem('ams_saved_loops_v3', JSON.stringify(allSavedLoops));
         renderLoopList();
     }
 
-    // --- YouTubeリスト保存 ---
     function saveYTVideo() {
         const url = document.getElementById('ytUrl').value;
         if (!url) return;
@@ -463,21 +461,26 @@
     }
 
     // --- 設定反映 (Speed & Pitch) ---
+    // 改修：確実にメディアエレメントへアクセスし、音程を制御する
     const applySettings = () => {
         if (!wavesurfer) return;
         const s = parseFloat(document.getElementById('speed').value);
         const p = parseInt(document.getElementById('pitch').value);
+        
+        // v7ではsetPlaybackRateで速度を変更
+        wavesurfer.setPlaybackRate(s, true); // 第2引数trueで音程維持のヒント
+        
         const m = wavesurfer.getMediaElement();
         if (m) { 
-            m.preservesPitch = true; 
-            wavesurfer.setPlaybackRate(s); 
-            if (m.detune !== undefined) m.detune = p * 100; 
+            m.preservesPitch = true; // 速度を変えても音程を変えない
+            if (m.detune !== undefined) {
+                m.detune = p * 100; // 音程を半音単位で変更 (100cent = 1半音)
+            }
         }
         document.getElementById('spTxt').innerText = "BPM " + Math.round(originalBpm * s);
         document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
     };
 
-    // --- 音声解析 ---
     async function analyzeAudio(file) {
         const lang = document.getElementById('langSelect').value;
         document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).analyzing;
@@ -514,7 +517,6 @@
         return (best < 50 || best > 250) ? 0 : best;
     }
 
-    // --- YT Player ---
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
     function loadYouTube() {
@@ -548,9 +550,19 @@
         b.classList.toggle('active', isLooping); 
     }
 
-    // --- Main Logic ---
     function startApp() {
-        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true });
+        // v7のオプション設定。mediaControls: falseにしつつ、backendをWebAudioではなくHTML5(MediaElement)主体に誘導
+        wavesurfer = WaveSurfer.create({ 
+            container: '#waveform', 
+            waveColor: '#333', 
+            progressColor: '#d4a373', 
+            height: 120, 
+            barWidth: 2, 
+            normalize: true,
+            backend: 'WebAudio', // Pitch操作にはWebAudioバックエンドが最適
+            mediaControls: false
+        });
+
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
@@ -563,7 +575,8 @@
                 currentFileName = f.name;
                 document.getElementById('fileBtnLabel').innerText = f.name;
                 wsRegions.clearRegions();
-                analyzeAudio(f); wavesurfer.load(currentObjectURL);
+                analyzeAudio(f); 
+                wavesurfer.load(currentObjectURL);
                 renderLoopList();
             }
         };
@@ -590,10 +603,12 @@
 
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (wavesurfer.isPlaying()) wavesurfer.pause();
-            else {
+            if (wavesurfer.isPlaying()) {
+                wavesurfer.pause();
+            } else {
                 if (isCountEnabled) {
-                    const overlay = document.getElementById('countdown-overlay'); overlay.style.display = 'block';
+                    const overlay = document.getElementById('countdown-overlay'); 
+                    overlay.style.display = 'block';
                     const sVal = parseFloat(document.getElementById('speed').value);
                     const beat = 60000 / (originalBpm * (sVal > 0 ? sVal : 1));
                     for (let i = 1; i <= 4; i++) {
@@ -606,22 +621,26 @@
                     overlay.style.display = 'none';
                 }
                 wavesurfer.play();
+                applySettings(); // 再生開始時にも念のため適用
             }
         };
 
-        wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
+        wavesurfer.on('play', () => {
+            document.getElementById('playIcon').innerText = 'pause';
+            applySettings(); // 再生中に設定が変わるのを防ぐため同期
+        });
         wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
+        
         document.getElementById('zoomSlider').oninput = e => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
         
-        // スライダー変更時に即時反映
-        document.getElementById('speed').oninput = applySettings;
-        document.getElementById('pitch').oninput = applySettings;
+        // スライダー操作時に即座に反映
+        document.getElementById('speed').addEventListener('input', applySettings);
+        document.getElementById('pitch').addEventListener('input', applySettings);
         
         window.resetSetting = (id, v) => { document.getElementById(id).value = v; applySettings(); };
 
-        // データの復元
-        const localLoops = localStorage.getItem('ams_saved_loops_v2');
+        const localLoops = localStorage.getItem('ams_saved_loops_v3');
         if (localLoops) { allSavedLoops = JSON.parse(localLoops); }
         const localVideos = localStorage.getItem('ams_saved_videos');
         if (localVideos) { savedVideos = JSON.parse(localVideos); renderYTList(); }
