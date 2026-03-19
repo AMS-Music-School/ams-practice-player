@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.7" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.7">
+    <link rel="icon" href="icon.png?v=1.0.6" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.6">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -120,6 +120,7 @@
         }
         .menu-item:hover { background: #333; }
 
+        /* 言語選択セレクトボックスのスタイル */
         .lang-select {
             width: 100%; padding: 10px; background: #2a2a2a; color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem;
         }
@@ -204,12 +205,14 @@
 </div>
 
 <div id="guideModalFile" class="modal">
-    <div class="guide-box-inner" id="guideFileContent"></div>
+    <div class="guide-box-inner" id="guideFileContent">
+        </div>
     <button class="clear-btn-ja" id="closeBtn1" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
 </div>
 
 <div id="guideModalYT" class="modal">
-    <div class="guide-box-inner" id="guideYTContent"></div>
+    <div class="guide-box-inner" id="guideYTContent">
+        </div>
     <button class="clear-btn-ja" id="closeBtn2" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
 </div>
 
@@ -303,6 +306,7 @@
 </div>
 
 <script>
+    // 翻訳データ
     const translations = {
         ja: {
             langTitle: "言語設定", helpTitle: "ヘルプ & ガイド", guideFile: "Audio Fileモード ガイド", guideYT: "YouTubeモード ガイド",
@@ -315,7 +319,7 @@
             langTitle: "Language Settings", helpTitle: "Help & Guide", guideFile: "Audio File Mode Guide", guideYT: "YouTube Mode Guide",
             close: "Close", fit: "FIT", clear: "Clear Loop", ready: "READY", analyzing: "ANALYZING...",
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
-            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li></ul>",
+            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li></ul>",
             guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li></ul>"
         },
         zh: {
@@ -356,10 +360,20 @@
         document.getElementById('setEndBtn').innerText = t.setEnd;
         document.getElementById('guideFileContent').innerHTML = t.guideFileContent;
         document.getElementById('guideYTContent').innerHTML = t.guideYTContent;
+        
         const loadS = document.getElementById('loadStatus');
-        if (loadS.innerText.match(/READY|準備|就緒|LISTO|준비/)) loadS.innerText = t.ready;
+        if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備") || loadS.innerText.includes("就緒")) loadS.innerText = t.ready;
+        
         const loopB = document.getElementById('toggleLoopBtn');
         loopB.innerText = isLooping ? t.loopOn : t.loopOff;
+    }
+
+    // 初回の言語設定
+    const userLang = (navigator.language || navigator.userLanguage).substring(0, 2);
+    if (translations[userLang]) {
+        document.getElementById('langSelect').value = userLang;
+    } else {
+        document.getElementById('langSelect').value = 'en';
     }
 
     function toggleMenu(isOpen) {
@@ -368,7 +382,8 @@
     }
 
     function showGuide(type) {
-        toggleMenu(false); closeModals();
+        toggleMenu(false);
+        closeModals();
         if (type === 'file') document.getElementById('guideModalFile').style.display = 'block';
         if (type === 'yt') document.getElementById('guideModalYT').style.display = 'block';
         document.getElementById('menuOverlay').style.display = 'block';
@@ -389,8 +404,13 @@
     let isSpeedUpEnabled = false;
 
     function toggleFeature(type) {
-        if (type === 'count') { isCountEnabled = !isCountEnabled; document.getElementById('countToggleBtn').classList.toggle('active', isCountEnabled); }
-        else if (type === 'speedup') { isSpeedUpEnabled = !isSpeedUpEnabled; document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled); }
+        if (type === 'count') {
+            isCountEnabled = !isCountEnabled;
+            document.getElementById('countToggleBtn').classList.toggle('active', isCountEnabled);
+        } else if (type === 'speedup') {
+            isSpeedUpEnabled = !isSpeedUpEnabled;
+            document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled);
+        }
     }
 
     function switchMode(mode) {
@@ -412,10 +432,15 @@
             const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
             const data = audioBuffer.getChannelData(0);
             let skip = 0;
-            for (let i = 0; i < data.length; i++) { if (Math.abs(data[i]) > 0.015) { skip = i / audioBuffer.sampleRate; break; } }
+            for (let i = 0; i < data.length; i++) { 
+                if (Math.abs(data[i]) > 0.015) { skip = i / audioBuffer.sampleRate; break; } 
+            }
             firstSoundTime = skip;
             const bpm = detectBPM(audioBuffer);
-            if (bpm > 0) { originalBpm = Math.round(bpm); updateBpmDisplay(); }
+            if (bpm > 0) {
+                originalBpm = Math.round(bpm);
+                updateBpmDisplay(); 
+            }
             document.getElementById('loadStatus').innerText = translations[lang].ready;
             if(wavesurfer) wavesurfer.setTime(firstSoundTime);
         } catch (e) {
@@ -425,7 +450,8 @@
 
     function updateBpmDisplay() {
         const currentSpeed = parseFloat(document.getElementById('speed').value);
-        document.getElementById('spTxt').innerText = "BPM " + Math.round(originalBpm * currentSpeed);
+        const currentBpm = Math.round(originalBpm * currentSpeed);
+        document.getElementById('spTxt').innerText = "BPM " + currentBpm;
     }
 
     function detectBPM(buffer) {
@@ -434,14 +460,16 @@
         const step = 200;
         const energy = [];
         for (let i = 0; i < data.length; i += step) {
-            let sum = 0; for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j] * data[i+j];
+            let sum = 0;
+            for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j] * data[i+j];
             energy.push(Math.sqrt(sum/step));
         }
         let bestBpm = 0, maxCorrelation = 0;
         const minInterval = Math.floor((60 / 200) * (sampleRate / step));
         const maxInterval = Math.floor((60 / 60) * (sampleRate / step));
         for (let interval = minInterval; interval <= maxInterval; interval++) {
-            let correlation = 0; for (let i = 0; i < Math.min(energy.length - interval, 10000); i++) correlation += energy[i] * energy[i + interval];
+            let correlation = 0;
+            for (let i = 0; i < Math.min(energy.length - interval, 10000); i++) correlation += energy[i] * energy[i + interval];
             if (correlation > maxCorrelation) { maxCorrelation = correlation; bestBpm = 60 / (interval * step / sampleRate); }
         }
         return (bestBpm < 50 || bestBpm > 250) ? 0 : bestBpm;
@@ -449,10 +477,13 @@
 
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
         osc.frequency.setValueAtTime(isLast ? 880 : 440, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-        osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
     async function runCountdown() {
@@ -461,7 +492,11 @@
         const interval = 60000 / (originalBpm * currentSpeed);
         const overlay = document.getElementById('countdown-overlay');
         overlay.style.display = 'block';
-        for (let i = 1; i <= 4; i++) { overlay.innerText = i; playBeep(i === 4); await new Promise(r => setTimeout(r, interval)); }
+        for (let i = 1; i <= 4; i++) {
+            overlay.innerText = i;
+            playBeep(i === 4);
+            await new Promise(r => setTimeout(r, interval));
+        }
         overlay.style.display = 'none';
         return true;
     }
@@ -491,12 +526,17 @@
         else { loopEnd = Math.max(loopStart + 1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
     };
     window.toggleLoop = () => { 
-        isLooping = !isLooping; const lang = document.getElementById('langSelect').value;
-        const b = document.getElementById('toggleLoopBtn'); b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff; b.classList.toggle('active', isLooping); 
+        isLooping = !isLooping; 
+        const lang = document.getElementById('langSelect').value;
+        const b = document.getElementById('toggleLoopBtn'); 
+        b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff; 
+        b.classList.toggle('active', isLooping); 
     };
 
     function startApp() {
-        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff' });
+        wavesurfer = WaveSurfer.create({ 
+            container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff'
+        });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
@@ -509,7 +549,6 @@
             if(file) { 
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 currentObjectURL = URL.createObjectURL(file);
-                wsRegions.clearRegions(); // 曲変更時にループをリセット
                 analyzeAudio(file); wavesurfer.load(currentObjectURL);
             } 
         };
@@ -520,16 +559,11 @@
             const media = wavesurfer.getMediaElement();
             if (media) {
                 media.preservesPitch = true;
-                wavesurfer.setPlaybackRate(s);
-                // 2と5の案の核心: メディア要素側のdetuneを強制的に操作
                 if (media.detune !== undefined) {
-                    media.detune = p * 100;
+                    media.detune = p * 100; wavesurfer.setPlaybackRate(s);
                 } else {
-                    // detune非対応ブラウザ（主に旧iOS）向けのフォールバック
-                    if (p !== 0) { 
-                        media.preservesPitch = false; 
-                        wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); 
-                    }
+                    if (p !== 0) { media.preservesPitch = false; wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); } 
+                    else { media.preservesPitch = true; wavesurfer.setPlaybackRate(s); }
                 }
             }
             updateBpmDisplay();
@@ -544,8 +578,11 @@
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (wavesurfer.isPlaying()) wavesurfer.pause();
             else {
-                const current = wavesurfer.getCurrentTime(); const region = wsRegions.getRegions()[0];
-                if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
+                const current = wavesurfer.getCurrentTime();
+                const region = wsRegions.getRegions()[0];
+                if (isCountEnabled) {
+                    if (region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
+                }
                 await runCountdown(); wavesurfer.play();
             }
         };
@@ -566,9 +603,6 @@
         });
 
         window.resetSetting = (id, val) => { document.getElementById(id).value = val; applySettings(); };
-        
-        const userLang = (navigator.language || navigator.userLanguage).substring(0, 2);
-        document.getElementById('langSelect').value = translations[userLang] ? userLang : 'en';
         changeLanguage();
     }
     startApp();
