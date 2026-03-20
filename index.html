@@ -259,37 +259,54 @@
     let currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
 
-    // --- High Accuracy BPM Analysis ---
+    // --- High Accuracy BPM Analysis (Refined with Filter & Peaks) ---
     async function detectBPM(buffer) {
-        const data = buffer.getChannelData(0);
-        const sampleRate = buffer.sampleRate;
-        const partSize = 22050; // 0.5s chunks
-        const parts = Math.floor(data.length / partSize);
-        let energies = [];
+        const offlineCtx = new OfflineAudioContext(1, buffer.length, buffer.sampleRate);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buffer;
 
-        for (let i = 0; i < parts; i++) {
-            let energy = 0;
-            for (let j = 0; j < partSize; j++) {
-                energy += Math.abs(data[i * partSize + j]);
+        // Lowpass filter to focus on beats (kick drum range)
+        const filter = offlineCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 150; 
+
+        source.connect(filter);
+        filter.connect(offlineCtx.destination);
+        source.start(0);
+
+        const renderedBuffer = await offlineCtx.startRendering();
+        const data = renderedBuffer.getChannelData(0);
+        
+        // Peak Detection
+        const peaks = [];
+        const threshold = 0.8; // Initial threshold
+        const minDistance = buffer.sampleRate * 0.3; // Min 0.3s between beats (~200BPM max)
+
+        for (let i = 0; i < data.length; i++) {
+            if (data[i] > threshold) {
+                peaks.push(i);
+                i += minDistance; 
             }
-            energies.push(energy);
         }
 
-        const calcTempo = (minBpm, maxBpm) => {
-            let bestBpm = 120;
-            let maxScore = 0;
-            for (let bpm = minBpm; bpm <= maxBpm; bpm++) {
-                let score = 0;
-                const interval = (60 / bpm) / (partSize / sampleRate);
-                for (let i = 0; i < energies.length; i++) {
-                    if (Math.abs(i % interval) < 1) score += energies[i];
-                }
-                if (score > maxScore) { maxScore = score; bestBpm = bpm; }
-            }
-            return bestBpm;
-        };
+        if (peaks.length < 2) return 120; // Default fallback
 
-        return calcTempo(70, 180);
+        // Calculate average interval between peaks
+        let intervals = [];
+        for (let i = 1; i < peaks.length; i++) {
+            intervals.push(peaks[i] - peaks[i-1]);
+        }
+
+        // Sort and find median to avoid outliers
+        intervals.sort((a, b) => a - b);
+        const medianInterval = intervals[Math.floor(intervals.length / 2)];
+        let bpm = Math.round((60 * buffer.sampleRate) / medianInterval);
+
+        // Normalize within standard range 65-180
+        while (bpm < 65) bpm *= 2;
+        while (bpm > 180) bpm /= 2;
+
+        return Math.round(bpm);
     }
 
     // --- Audio Logic ---
@@ -382,7 +399,7 @@
         else { loopEnd = Math.max(loopStart + 0.1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); ytPlayer.seekTo(loopEnd); }
     };
 
-    // --- History Logic (Re-Fixed for 10 items) ---
+    // --- History Logic ---
     function saveToHistory(id, title) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
         history = history.filter(h => h.id !== id);
