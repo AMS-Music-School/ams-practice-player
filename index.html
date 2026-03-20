@@ -228,6 +228,7 @@
     </div>
 
     <div id="file-section" class="content-section active">
+        <!-- ファイル入力部分をカスタムラベル化 -->
         <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">ファイルを選択</label>
         <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .mp4, .ogg, .flac, .webma">
 
@@ -247,7 +248,7 @@
         </div>
 
         <div class="clear-btn-container">
-            <button class="clear-btn-ja" onclick="clearAllRegions()" id="clearRangeBtn">
+            <button class="clear-btn-ja" onclick="wsRegions.clearRegions()" id="clearRangeBtn">
                 <span class="material-icons" style="font-size:16px; vertical-align:middle;">layers_clear</span> 範囲解除
             </button>
         </div>
@@ -310,6 +311,7 @@
 </div>
 
 <script>
+    // 翻訳データ（ファイル選択ボタンの項目を追加）
     const translations = {
         ja: {
             langTitle: "言語設定", helpTitle: "ヘルプ & ガイド", guideFile: "Audio Fileモード ガイド", guideYT: "YouTubeモード ガイド",
@@ -332,7 +334,7 @@
             close: "关闭", fit: "自适应", clear: "解除范围", ready: "就绪", analyzing: "解析中...",
             setStart: "设置开始", setEnd: "设置结束", loopOff: "循环 关闭", loopOn: "循环 开启",
             fileSelect: "选择音频文件",
-            guideFileContent: "<b>【音频文件模式】指南</b><ul><li>选择文件: 请选择音频文件。</li><li>速度: 滑动条调整播放速度。</li><li>循环: 在波形上拖動以设定范围。</li></ul>",
+            guideFileContent: "<b>【音频文件模式】指南</b><ul><li>选择文件: 请选择音频文件。</li><li>速度: 滑动条调整播放速度。</li><li>循环: 在波形上拖动以设定范围。</li></ul>",
             guideYTContent: "<b>【YouTube模式】指南</b><ul><li>加载: 粘贴URL并点击LOAD。</li><li>循环: 点击SET START/END设定区间。</li></ul>"
         },
         es: {
@@ -345,7 +347,7 @@
         },
         ko: {
             langTitle: "언어 설정", helpTitle: "도움말 및 가이드", guideFile: "파일 모드 가이드", guideYT: "YouTube 모드 가이드",
-            close: "닫기", fit: "전체보기", Korean: "범위 해제", ready: "준비 완료", analyzing: "분석 중...",
+            close: "닫기", fit: "전체보기", clear: "범위 해제", ready: "준비 완료", analyzing: "분석 중...",
             setStart: "시작 설정", setEnd: "종료 설정", loopOff: "루프 꺼짐", loopOn: "루프 켜짐",
             fileSelect: "파일 선택",
             guideFileContent: "<b>【파일 모드】가이드</b><ul><li>파일 선택: 음악 파일을 선택하세요.</li><li>속도: 슬라이더로 재생 속도를 조절하세요.</li><li>루프: 파형을 드래그하여 범위를 설정하세요.</li></ul>",
@@ -369,6 +371,7 @@
         document.getElementById('guideFileContent').innerHTML = t.guideFileContent;
         document.getElementById('guideYTContent').innerHTML = t.guideYTContent;
         
+        // ファイル選択ボタンのテキスト更新（選択されたファイル名がない場合のみ）
         const fileInput = document.getElementById('audioFile');
         const fileLabel = document.getElementById('fileSelectBtn');
         if (!fileInput.files.length) {
@@ -382,6 +385,7 @@
         loopB.innerText = isLooping ? t.loopOn : t.loopOff;
     }
 
+    // 初回の言語設定
     const userLang = (navigator.language || navigator.userLanguage).substring(0, 2);
     if (translations[userLang]) {
         document.getElementById('langSelect').value = userLang;
@@ -516,71 +520,28 @@
 
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
-
     function loadYouTube() {
         const url = document.getElementById('ytUrl').value;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
         if (videoId) {
-            clearSavedYTLoop(); // 曲が変わるため保存データを消去
             if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
-            else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onStateChange': onPlayerStateChange, 'onReady': onYTReady } });
+            else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onStateChange': onPlayerStateChange } });
         }
     }
-    
-    function onYTReady() {
-        loadSavedYTLoop(); // 保存されたループがあれば適用
-    }
-
     function onPlayerStateChange(e) {
-        if (e.data == YT.PlayerState.PLAYING) {
-            loopInterval = setInterval(() => { 
-                if (isLooping && loopEnd > loopStart && ytPlayer.getCurrentTime() >= loopEnd) {
-                    ytPlayer.seekTo(loopStart);
-                } 
-            }, 200);
-        } else {
-            clearInterval(loopInterval);
-        }
+        if (e.data == YT.PlayerState.PLAYING) loopInterval = setInterval(() => { if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) ytPlayer.seekTo(loopStart); }, 200);
+        else clearInterval(loopInterval);
     }
-
     const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
-
-    // --- YouTubeループ保存ロジック ---
-    function saveYTLoop() {
-        localStorage.setItem('yt_loop_start', loopStart);
-        localStorage.setItem('yt_loop_end', loopEnd);
-    }
-    function loadSavedYTLoop() {
-        const s = localStorage.getItem('yt_loop_start');
-        const e = localStorage.getItem('yt_loop_end');
-        if(s !== null && e !== null) {
-            loopStart = parseFloat(s);
-            loopEnd = parseFloat(e);
-            document.getElementById('loopStartTxt').innerText = fmt(loopStart);
-            document.getElementById('loopEndTxt').innerText = fmt(loopEnd);
-        }
-    }
-    function clearSavedYTLoop() {
-        loopStart = 0; loopEnd = 0;
-        document.getElementById('loopStartTxt').innerText = "00:00";
-        document.getElementById('loopEndTxt').innerText = "00:00";
-        localStorage.removeItem('yt_loop_start');
-        localStorage.removeItem('yt_loop_end');
-    }
-
     window.setLoopPoint = (t) => {
         const now = ytPlayer.getCurrentTime();
         if (t === 'start') { loopStart = Math.floor(now); document.getElementById('loopStartTxt').innerText = fmt(loopStart); }
         else { loopEnd = Math.ceil(now); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
-        saveYTLoop();
     };
-
     window.adjustTime = (t, a) => {
         if (t === 'start') { loopStart = Math.max(0, loopStart + a); document.getElementById('loopStartTxt').innerText = fmt(loopStart); ytPlayer.seekTo(loopStart); }
         else { loopEnd = Math.max(loopStart + 1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
-        saveYTLoop();
     };
-
     window.toggleLoop = () => { 
         isLooping = !isLooping; 
         const lang = document.getElementById('langSelect').value;
@@ -589,36 +550,13 @@
         b.classList.toggle('active', isLooping); 
     };
 
-    // --- Audio Fileループ保存ロジック ---
-    function saveFileRegion(start, end) {
-        localStorage.setItem('file_loop_start', start);
-        localStorage.setItem('file_loop_end', end);
-    }
-    function clearFileRegion() {
-        localStorage.removeItem('file_loop_start');
-        localStorage.removeItem('file_loop_end');
-    }
-    window.clearAllRegions = () => {
-        wsRegions.clearRegions();
-        clearFileRegion();
-    };
-
     function startApp() {
         wavesurfer = WaveSurfer.create({ 
             container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff'
         });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
-        
-        wsRegions.on('region-created', r => { 
-            if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
-            wavesurfer.setTime(r.start);
-            saveFileRegion(r.start, r.end);
-        });
-
-        wsRegions.on('region-updated', r => {
-            saveFileRegion(r.start, r.end);
-        });
+        wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
 
         document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
@@ -628,8 +566,8 @@
             if(file) { 
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 currentObjectURL = URL.createObjectURL(file);
+                // 選択されたファイル名をボタンに表示
                 document.getElementById('fileSelectBtn').innerText = file.name;
-                clearAllRegions(); // 新しいファイルなのでループ消去
                 analyzeAudio(file); wavesurfer.load(currentObjectURL);
             } 
         };
@@ -651,20 +589,7 @@
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
         };
 
-        wavesurfer.on('ready', () => { 
-            document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
-            applySettings(); 
-            
-            // 保存されたループの復元
-            const s = localStorage.getItem('file_loop_start');
-            const e = localStorage.getItem('file_loop_end');
-            if(s !== null && e !== null) {
-                wsRegions.addRegion({ start: parseFloat(s), end: parseFloat(e), color: 'rgba(212, 163, 115, 0.2)' });
-            }
-
-            if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
-        });
-
+        wavesurfer.on('ready', () => { document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); applySettings(); if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); });
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
