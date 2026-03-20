@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player</title>
+    <title>AMS Practice Player - Pro</title>
     
     <link rel="icon" href="icon.png" type="image/png">
     <link rel="apple-touch-icon" href="icon.png">
@@ -68,7 +68,7 @@
         .val-display { color: var(--primary-color); font-weight: bold; min-width: 70px; text-align: right; font-size: 0.95rem; }
         
         .transport-controls { 
-            display: flex; justify-content: center; align-items: center; gap: 10px; margin: 15px 0; 
+            display: flex; justify: center; align-items: center; gap: 10px; margin: 15px 0; 
         }
         .btn-ctrl { 
             background: var(--panel-bg); color: var(--text-dim); border: 1px solid var(--border-color); 
@@ -117,13 +117,13 @@
         .loop-delete { color: #ff5555; cursor: pointer; padding: 5px; }
 
         .history-container { margin-top: 15px; display: none; }
-        .history-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
+        .history-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: thin; }
         .history-card { 
             background: #252525; border: 1px solid var(--border-color); border-radius: 8px; 
             padding: 8px; min-width: 140px; max-width: 140px; position: relative; cursor: pointer;
         }
         .history-title { font-size: 0.65rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .history-del { position: absolute; top: -5px; right: -5px; color: #ff5555; font-size: 18px; background: #121212; border-radius: 50%; }
+        .history-del { position: absolute; top: -5px; right: -5px; color: #ff5555; font-size: 18px; background: #121212; border-radius: 50%; z-index: 5; }
 
         .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
     </style>
@@ -185,7 +185,7 @@
         </div>
         <div id="loopListFile" class="loop-list-container"></div>
         
-        <div class="transport-controls">
+        <div class="transport-controls" style="display: flex; justify-content: center;">
             <button class="btn-ctrl active" id="countToggleBtn" onclick="toggleFeature('count')"><span class="material-icons">timer</span></button>
             <button class="btn-ctrl" onclick="wavesurfer.skip(-5)"><span class="material-icons">replay_5</span></button>
             <button class="btn-ctrl play-main" id="playBtn"><span class="material-icons" id="playIcon" style="font-size:35px;">play_arrow</span></button>
@@ -197,7 +197,7 @@
             <div class="row">
                 <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Speed <button class="reset-btn" onclick="resetSetting('speed', 1.0)">Reset</button></div>
                 <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="1.0">
-                <span id="spTxt" class="val-display">BPM 120</span>
+                <span id="spTxt" class="val-display">BPM ---</span>
             </div>
             <div class="row">
                 <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Pitch <button class="reset-btn" onclick="resetSetting('pitch', 0)">Reset</button></div>
@@ -259,10 +259,40 @@
     let currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
 
-    // --- Sound Logic ---
+    // --- Sound & BPM Logic ---
     function initAudioCtx() {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    async function analyzeBpm(buffer) {
+        const offlineCtx = new OfflineAudioContext(buffer.numberOfChannels, buffer.length, buffer.sampleRate);
+        const source = offlineCtx.createBufferSource();
+        source.buffer = buffer;
+
+        const filter = offlineCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        source.connect(filter);
+        filter.connect(offlineCtx.destination);
+
+        source.start(0);
+        const renderedBuffer = await offlineCtx.startRendering();
+        const data = renderedBuffer.getChannelData(0);
+
+        let peaks = [];
+        const threshold = 0.8;
+        for (let i = 0; i < data.length; i += 1000) {
+            if (data[i] > threshold) peaks.push(i);
+        }
+
+        if (peaks.length < 2) return 120;
+        let intervals = [];
+        for (let i = 1; i < peaks.length; i++) {
+            intervals.push(peaks[i] - peaks[i - 1]);
+        }
+        const avgInterval = intervals.reduce((a, b) => a + b) / intervals.length;
+        const bpm = Math.round(60 / (avgInterval / buffer.sampleRate));
+        return (bpm > 60 && bpm < 200) ? bpm : 120;
     }
 
     function playBeep(isLast) {
@@ -349,12 +379,15 @@
         else { loopEnd = Math.max(loopStart + 0.1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); ytPlayer.seekTo(loopEnd); }
     };
 
-    // --- History Logic ---
+    // --- History Logic (REFIXED) ---
     function saveToHistory(id, title) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
+        // 既存の同IDを削除して先頭に追加
         history = history.filter(h => h.id !== id);
         history.unshift({ id, title });
-        localStorage.setItem('ams_yt_history', JSON.stringify(history.slice(0, 10)));
+        // 最大10件を保持
+        const newHistory = history.slice(0, 10);
+        localStorage.setItem('ams_yt_history', JSON.stringify(newHistory));
         renderHistory();
     }
 
@@ -374,7 +407,8 @@
 
     window.deleteHistory = (id) => {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
-        localStorage.setItem('ams_yt_history', JSON.stringify(history.filter(h => h.id !== id)));
+        const updated = history.filter(h => h.id !== id);
+        localStorage.setItem('ams_yt_history', JSON.stringify(updated));
         renderHistory();
     };
 
@@ -469,12 +503,20 @@
             wavesurfer.setTime(r.start);
         });
 
-        document.getElementById('audioFile').onchange = e => {
+        document.getElementById('audioFile').onchange = async e => {
             const file = e.target.files[0];
             if (file) {
                 currentFileName = file.name;
                 document.getElementById('fileSelectBtn').innerText = file.name;
+                document.getElementById('loadStatus').innerText = "ANALYZING...";
+                
+                const arrayBuffer = await file.arrayBuffer();
+                initAudioCtx();
+                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                originalBpm = await analyzeBpm(audioBuffer);
+                
                 wavesurfer.load(URL.createObjectURL(file));
+                document.getElementById('loadStatus').innerText = "READY (BPM: " + originalBpm + ")";
                 renderLoopList('file');
             }
         };
@@ -496,7 +538,8 @@
             if (wavesurfer.isPlaying()) { wavesurfer.pause(); } 
             else {
                 if (isCountEnabled) {
-                    const delay = 60000 / (originalBpm * parseFloat(document.getElementById('speed').value));
+                    const currentSpeed = parseFloat(document.getElementById('speed').value);
+                    const delay = 60000 / (originalBpm * currentSpeed);
                     const overlay = document.getElementById('countdown-overlay');
                     overlay.style.display = 'block';
                     for (let i = 1; i <= 4; i++) { overlay.innerText = i; playBeep(i === 4); await new Promise(r => setTimeout(r, delay)); }
