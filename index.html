@@ -145,7 +145,6 @@
         .content-section { display: none; }
         .content-section.active { display: block; }
 
-        .clear-btn-container { margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; }
         .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 
         .guide-box-inner { font-size: 0.8rem; color: var(--text-dim); line-height: 1.6; }
@@ -157,7 +156,8 @@
 
         .loop-btn-main { background: var(--primary-color); color: #121212; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; min-width: 80px; }
         .adj-btn { background: #333; border: 1px solid var(--border-color); color: var(--text-main); width: 40px; height: 32px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; }
-        #toggleLoopBtn { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border-color); transition: all 0.3s ease; }
+        
+        #toggleLoopBtn { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border-color); transition: all 0.3s ease; width: 140px; }
         #toggleLoopBtn.active { background: var(--primary-color); color: #121212; border: 1px solid var(--primary-color); font-weight: bold; }
         
         .loop-list-container { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; max-height: 200px; overflow-y: auto; }
@@ -247,6 +247,7 @@
         <button class="tab-btn" id="tab-yt" onclick="switchMode('yt')">YouTube Mode</button>
     </div>
 
+    <!-- Audio File Section -->
     <div id="file-section" class="content-section active">
         <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">ファイルを選択</label>
         <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .mp4, .ogg, .flac, .webma">
@@ -266,7 +267,7 @@
             <div id="waveform"></div>
         </div>
 
-        <!-- 追記：Audio File Mode用 調整ボタンパネル (YouTubeモードと統一) -->
+        <!-- NEW: Audio File Mode Loop Panel (YouTube Style) -->
         <div class="panel" style="margin-bottom:10px;">
             <div class="row" style="justify-content: center; flex-wrap: wrap; gap: 10px;">
                 <button class="loop-btn-main" id="setFileStartBtn" onclick="setFileLoopPoint('start')">開始位置</button>
@@ -289,7 +290,7 @@
                 </div>
             </div>
             <div class="row" style="justify-content: center; gap: 10px; margin-top:5px;">
-                <button class="clear-btn-ja" onclick="wsRegions.clearRegions()" id="clearRangeBtn">
+                <button class="clear-btn-ja" onclick="wsRegions.clearRegions(); updateFileTimeDisplay(0,0);" id="clearRangeBtn">
                     <span class="material-icons" style="font-size:16px;">layers_clear</span> 範囲解除
                 </button>
                 <button class="clear-btn-ja" onclick="saveLoop('file')" id="saveLoopBtn" style="border: 1px solid var(--primary-color);">
@@ -326,6 +327,7 @@
         </div>
     </div>
 
+    <!-- YouTube Section -->
     <div id="yt-section" class="content-section">
         <div style="display:flex; gap:8px; margin-bottom:10px; background:var(--panel-bg); padding:10px; border-radius:10px; border: 1px solid var(--border-color);">
             <input type="text" id="ytUrl" placeholder="YouTube URL..." style="flex-grow:1; padding:10px; border:1px solid var(--border-color); background:#000; color:#fff; border-radius:6px; font-size:0.8rem;">
@@ -364,7 +366,7 @@
                 </div>
             </div>
             <div class="row" style="justify-content: center; gap: 10px;">
-                <button id="toggleLoopBtn" class="tab-btn" style="width:140px;" onclick="toggleLoop()">LOOP OFF</button>
+                <button id="toggleLoopBtn" class="tab-btn" onclick="toggleLoop()">LOOP OFF</button>
                 <button class="clear-btn-ja" onclick="saveLoop('yt')" id="saveLoopBtnYT" style="border: 1px solid var(--primary-color); border-radius: 6px; padding: 8px 12px;">
                     <span class="material-icons" style="font-size:16px;">bookmark_add</span> SAVE
                 </button>
@@ -375,13 +377,14 @@
 </div>
 
 <script>
+    // --- Translations & UI ---
     const translations = {
         ja: {
             langTitle: "言語設定", helpTitle: "ヘルプ & ガイド", guideFile: "Audio Fileモード ガイド", guideYT: "YouTubeモード ガイド",
             close: "閉じる", fit: "全体表示", clear: "範囲解除", ready: "準備完了", analyzing: "解析中...",
             setStart: "開始位置", setEnd: "終了位置", loopOff: "ループ OFF", loopOn: "ループ ON",
             fileSelect: "ファイルを選択", saveLoop: "ループ保存",
-            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li><li>ループ保存: 現在の範囲を保存してリスト化できます。</li></ul>",
+            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグまたはボタンで範囲を指定できます。</li><li>ループ保存: 現在の範囲を保存してリスト化できます。</li></ul>",
             guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>読み込み: URLを貼り付けてLOADを押します。</li><li>ループ: SET START/ENDで区間を決めます。</li><li>SAVE: YouTube動画ごとに複数のループを保存できます。</li></ul>"
         },
         en: {
@@ -389,7 +392,7 @@
             close: "Close", fit: "FIT", clear: "Clear Loop", ready: "READY", analyzing: "ANALYZING...",
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
             fileSelect: "Select Audio File", saveLoop: "Save Loop",
-            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
+            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform or use buttons to set range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
             guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
         }
     };
@@ -445,12 +448,14 @@
         document.getElementById('menuOverlay').style.display = 'none';
     }
 
+    // --- State Variables ---
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
-    let fileLoopStart = 0, fileLoopEnd = 0;
     let audioCtx, firstSoundTime = 0, originalBpm = 120;
     let currentObjectURL = null, currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
+
+    // --- Core Functions ---
 
     function toggleFeature(type) {
         if (type === 'count') {
@@ -472,25 +477,26 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
-    // --- Audio File Mode Specific Functions ---
-    window.setFileLoopPoint = (t) => {
+    // --- Audio File Mode Loop Controls ---
+    window.setFileLoopPoint = (type) => {
+        if (!wavesurfer) return;
         const now = wavesurfer.getCurrentTime();
         const duration = wavesurfer.getDuration();
         let region = wsRegions.getRegions()[0];
         
         let start = region ? region.start : now;
-        let end = region ? region.end : Math.min(now + 10, duration);
+        let end = region ? region.end : Math.min(now + 5, duration);
 
-        if (t === 'start') start = now; else end = now;
+        if (type === 'start') start = now; else end = now;
 
-        if (start >= end) end = Math.min(start + 0.1, duration);
+        if (start >= end) end = Math.min(start + 0.5, duration);
         
         wsRegions.clearRegions();
-        wsRegions.addRegion({ start, end, color: 'rgba(212, 163, 115, 0.2)' });
+        wsRegions.addRegion({ start, end, color: 'rgba(212, 163, 115, 0.2)', drag: true, resize: true });
         updateFileTimeDisplay(start, end);
     };
 
-    window.adjustFileTime = (t, a) => {
+    window.adjustFileTime = (type, amount) => {
         let region = wsRegions.getRegions()[0];
         if (!region) {
             const now = wavesurfer.getCurrentTime();
@@ -500,12 +506,17 @@
         let start = region.start;
         let end = region.end;
 
-        if (t === 'start') start = Math.max(0, start + a);
-        else end = Math.max(start + 0.1, end + a);
+        if (type === 'start') {
+            start = Math.max(0, start + amount);
+            if (start >= end) start = end - 0.1;
+        } else {
+            end = Math.min(wavesurfer.getDuration(), end + amount);
+            if (end <= start) end = start + 0.1;
+        }
 
         region.update({ start, end });
         updateFileTimeDisplay(start, end);
-        wavesurfer.setTime(t === 'start' ? start : end);
+        wavesurfer.setTime(type === 'start' ? start : end);
     };
 
     function updateFileTimeDisplay(s, e) {
@@ -513,7 +524,7 @@
         document.getElementById('fileEndTxt').innerText = fmt(e);
     }
 
-    // --- YouTube Mode Specific Functions ---
+    // --- YouTube Mode Loop Controls ---
     window.setLoopPoint = (t) => {
         const now = ytPlayer.getCurrentTime();
         if (t === 'start') { loopStart = now; document.getElementById('loopStartTxt').innerText = fmt(loopStart); }
@@ -524,9 +535,7 @@
         else { loopEnd = Math.max(loopStart + 0.1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); ytPlayer.seekTo(loopEnd); }
     };
 
-    // --- Shared Helper Functions ---
-    const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toFixed(1).padStart(4,'0')}`;
-
+    // --- Audio Analysis (BPM & Silence) ---
     async function analyzeAudio(file) {
         const lang = document.getElementById('langSelect').value;
         document.getElementById('loadStatus').innerText = translations[lang].analyzing;
@@ -549,12 +558,6 @@
         } finally { tempCtx.close(); }
     }
 
-    function updateBpmDisplay() {
-        const currentSpeed = parseFloat(document.getElementById('speed').value);
-        const currentBpm = Math.round(originalBpm * currentSpeed);
-        document.getElementById('spTxt').innerText = "BPM " + currentBpm;
-    }
-
     function detectBPM(buffer) {
         const data = buffer.getChannelData(0), sampleRate = buffer.sampleRate, step = 200, energy = [];
         for (let i = 0; i < data.length; i += step) {
@@ -572,6 +575,7 @@
         return (bestBpm < 50 || bestBpm > 250) ? 0 : bestBpm;
     }
 
+    // --- Metronome & Countdown ---
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
@@ -595,6 +599,7 @@
         overlay.style.display = 'none'; return true;
     }
 
+    // --- YouTube Integration ---
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
@@ -661,6 +666,7 @@
         b.classList.toggle('active', isLooping); 
     };
 
+    // --- Loop Management ---
     function saveLoop(mode) {
         let start, end, key;
         if (mode === 'file') {
@@ -721,13 +727,41 @@
         if (allLoops[key]) { allLoops[key].splice(index, 1); localStorage.setItem(storageKey, JSON.stringify(allLoops)); renderLoopList(mode); }
     };
 
+    // --- Helpers ---
+    const fmt = (s) => {
+        if (!s || isNaN(s)) return "00:00";
+        const m = Math.floor(s / 60);
+        const sec = (s % 60).toFixed(1);
+        return `${m.toString().padStart(2, '0')}:${sec.padStart(4, '0')}`;
+    };
+
+    function updateBpmDisplay() {
+        const currentSpeed = parseFloat(document.getElementById('speed').value);
+        const currentBpm = Math.round(originalBpm * currentSpeed);
+        document.getElementById('spTxt').innerText = "BPM " + currentBpm;
+    }
+
+    // --- Initialization ---
     function startApp() {
-        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff' });
+        wavesurfer = WaveSurfer.create({ 
+            container: '#waveform', 
+            waveColor: '#333', 
+            progressColor: '#d4a373', 
+            height: 120, 
+            barWidth: 2, 
+            normalize: true, 
+            cursorColor: '#fff',
+            interact: true
+        });
+        
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         
         wsRegions.on('region-updated', r => updateFileTimeDisplay(r.start, r.end));
-        wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); updateFileTimeDisplay(r.start, r.end); });
+        wsRegions.on('region-created', r => { 
+            if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
+            updateFileTimeDisplay(r.start, r.end); 
+        });
 
         document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
@@ -743,6 +777,7 @@
                 wavesurfer.load(currentObjectURL);
                 analyzeAudio(file);
                 renderLoopList('file');
+                updateFileTimeDisplay(0, 0);
             } 
         };
         
@@ -751,35 +786,61 @@
             const media = wavesurfer.getMediaElement();
             if (media) {
                 media.preservesPitch = true;
-                if (media.detune !== undefined) { media.detune = p * 100; wavesurfer.setPlaybackRate(s); }
-                else { if (p !== 0) { media.preservesPitch = false; wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); } else { media.preservesPitch = true; wavesurfer.setPlaybackRate(s); } }
+                if (media.detune !== undefined) { 
+                    media.detune = p * 100; 
+                    wavesurfer.setPlaybackRate(s); 
+                }
+                else { 
+                    if (p !== 0) { 
+                        media.preservesPitch = false; 
+                        wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); 
+                    } else { 
+                        media.preservesPitch = true; 
+                        wavesurfer.setPlaybackRate(s); 
+                    } 
+                }
             }
             updateBpmDisplay();
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
         };
 
-        wavesurfer.on('ready', () => { document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); applySettings(); if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); });
+        wavesurfer.on('ready', () => { 
+            document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
+            applySettings(); 
+            if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
+        });
+        
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (wavesurfer.isPlaying()) wavesurfer.pause();
-            else {
-                const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
-                if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
-                await runCountdown(); wavesurfer.play();
+            if (wavesurfer.isPlaying()) {
+                wavesurfer.pause();
+            } else {
+                const current = wavesurfer.getCurrentTime();
+                const region = wsRegions.getRegions()[0];
+                if (region && (current < region.start || current >= region.end)) {
+                    wavesurfer.setTime(region.start);
+                }
+                await runCountdown();
+                wavesurfer.play();
             }
         };
 
         wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
         wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
+        
         wavesurfer.on('timeupdate', t => {
             document.getElementById('currentTime').innerText = fmt(t);
             const r = wsRegions.getRegions()[0];
             if(r && t >= r.end) { 
                 wavesurfer.setTime(r.start); 
-                if (isSpeedUpEnabled) { const s = document.getElementById('speed'); s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); applySettings(); }
+                if (isSpeedUpEnabled) { 
+                    const s = document.getElementById('speed'); 
+                    s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); 
+                    applySettings(); 
+                }
             }
         });
 
@@ -787,6 +848,7 @@
         changeLanguage();
         renderYTHistory();
     }
+    
     startApp();
 </script>
 </body>
