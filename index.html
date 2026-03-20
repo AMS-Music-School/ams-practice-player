@@ -82,7 +82,6 @@
         .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); }
         .play-main { background: var(--primary-color); color: #121212 !important; width: 60px; height: 60px; border: none; }
 
-        /* カスタムファイル入力のスタイル */
         .custom-file-upload {
             display: block; width: 100%; padding: 12px; border: 2px dashed var(--border-color); 
             border-radius: 10px; margin-bottom: 12px; background: #181818; color: #888; 
@@ -97,7 +96,6 @@
         }
 
         .reset-btn { background: #333; border: none; color: #999; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; cursor: pointer; }
-
         .menu-trigger { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; }
 
         .side-menu {
@@ -228,7 +226,6 @@
     </div>
 
     <div id="file-section" class="content-section active">
-        <!-- ファイル入力部分をカスタムラベル化 -->
         <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">ファイルを選択</label>
         <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .mp4, .ogg, .flac, .webma">
 
@@ -248,7 +245,7 @@
         </div>
 
         <div class="clear-btn-container">
-            <button class="clear-btn-ja" onclick="wsRegions.clearRegions()" id="clearRangeBtn">
+            <button class="clear-btn-ja" onclick="clearFileRegion()" id="clearRangeBtn">
                 <span class="material-icons" style="font-size:16px; vertical-align:middle;">layers_clear</span> 範囲解除
             </button>
         </div>
@@ -311,7 +308,6 @@
 </div>
 
 <script>
-    // 翻訳データ（ファイル選択ボタンの項目を追加）
     const translations = {
         ja: {
             langTitle: "言語設定", helpTitle: "ヘルプ & ガイド", guideFile: "Audio Fileモード ガイド", guideYT: "YouTubeモード ガイド",
@@ -371,7 +367,6 @@
         document.getElementById('guideFileContent').innerHTML = t.guideFileContent;
         document.getElementById('guideYTContent').innerHTML = t.guideYTContent;
         
-        // ファイル選択ボタンのテキスト更新（選択されたファイル名がない場合のみ）
         const fileInput = document.getElementById('audioFile');
         const fileLabel = document.getElementById('fileSelectBtn');
         if (!fileInput.files.length) {
@@ -385,13 +380,8 @@
         loopB.innerText = isLooping ? t.loopOn : t.loopOff;
     }
 
-    // 初回の言語設定
     const userLang = (navigator.language || navigator.userLanguage).substring(0, 2);
-    if (translations[userLang]) {
-        document.getElementById('langSelect').value = userLang;
-    } else {
-        document.getElementById('langSelect').value = 'en';
-    }
+    document.getElementById('langSelect').value = translations[userLang] ? userLang : 'en';
 
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
@@ -419,6 +409,8 @@
     let currentObjectURL = null;
     let isCountEnabled = true;
     let isSpeedUpEnabled = false;
+    let currentFileName = ""; // 保存用のキー
+    let currentVideoId = "";   // 保存用のキー
 
     function toggleFeature(type) {
         if (type === 'count') {
@@ -520,35 +512,94 @@
 
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
+
+    // YouTubeループ保存/復元用関数
+    function saveYTLoop() {
+        if (!currentVideoId) return;
+        const data = { start: loopStart, end: loopEnd, active: isLooping };
+        localStorage.setItem('yt_loop_' + currentVideoId, JSON.stringify(data));
+    }
+
     function loadYouTube() {
         const url = document.getElementById('ytUrl').value;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
         if (videoId) {
+            currentVideoId = videoId;
+            // 前の曲のループ状態をリセットしてUIを更新
+            loopStart = 0;
+            loopEnd = 0;
+            isLooping = false;
+            
+            // 保存データがあれば復元
+            const saved = localStorage.getItem('yt_loop_' + videoId);
+            if (saved) {
+                const data = JSON.parse(saved);
+                loopStart = data.start;
+                loopEnd = data.end;
+                isLooping = data.active;
+            }
+            
+            updateYTLoopUI();
+
             if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
             else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onStateChange': onPlayerStateChange } });
         }
     }
-    function onPlayerStateChange(e) {
-        if (e.data == YT.PlayerState.PLAYING) loopInterval = setInterval(() => { if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) ytPlayer.seekTo(loopStart); }, 200);
-        else clearInterval(loopInterval);
+
+    function updateYTLoopUI() {
+        document.getElementById('loopStartTxt').innerText = fmt(loopStart);
+        document.getElementById('loopEndTxt').innerText = fmt(loopEnd);
+        const lang = document.getElementById('langSelect').value;
+        const b = document.getElementById('toggleLoopBtn');
+        b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff;
+        b.classList.toggle('active', isLooping);
     }
+
+    function onPlayerStateChange(e) {
+        if (e.data == YT.PlayerState.PLAYING) {
+            loopInterval = setInterval(() => { 
+                if (isLooping && ytPlayer.getCurrentTime() >= loopEnd && loopEnd > loopStart) {
+                    ytPlayer.seekTo(loopStart); 
+                }
+            }, 200);
+        } else {
+            clearInterval(loopInterval);
+        }
+    }
+
     const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+
     window.setLoopPoint = (t) => {
         const now = ytPlayer.getCurrentTime();
-        if (t === 'start') { loopStart = Math.floor(now); document.getElementById('loopStartTxt').innerText = fmt(loopStart); }
-        else { loopEnd = Math.ceil(now); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
+        if (t === 'start') { loopStart = Math.floor(now); }
+        else { loopEnd = Math.ceil(now); }
+        updateYTLoopUI();
+        saveYTLoop();
     };
+
     window.adjustTime = (t, a) => {
-        if (t === 'start') { loopStart = Math.max(0, loopStart + a); document.getElementById('loopStartTxt').innerText = fmt(loopStart); ytPlayer.seekTo(loopStart); }
-        else { loopEnd = Math.max(loopStart + 1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
+        if (t === 'start') { loopStart = Math.max(0, loopStart + a); ytPlayer.seekTo(loopStart); }
+        else { loopEnd = Math.max(loopStart + 1, loopEnd + a); }
+        updateYTLoopUI();
+        saveYTLoop();
     };
+
     window.toggleLoop = () => { 
         isLooping = !isLooping; 
-        const lang = document.getElementById('langSelect').value;
-        const b = document.getElementById('toggleLoopBtn'); 
-        b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff; 
-        b.classList.toggle('active', isLooping); 
+        updateYTLoopUI();
+        saveYTLoop();
     };
+
+    // Audio File 保存/クリア関数
+    function saveFileRegion(region) {
+        if (!currentFileName) return;
+        localStorage.setItem('file_loop_' + currentFileName, JSON.stringify({ start: region.start, end: region.end }));
+    }
+
+    function clearFileRegion() {
+        wsRegions.clearRegions();
+        if (currentFileName) localStorage.removeItem('file_loop_' + currentFileName);
+    }
 
     function startApp() {
         wavesurfer = WaveSurfer.create({ 
@@ -556,7 +607,14 @@
         });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
-        wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
+        
+        wsRegions.on('region-created', r => { 
+            if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
+            wavesurfer.setTime(r.start); 
+            saveFileRegion(r);
+        });
+
+        wsRegions.on('region-updated', r => saveFileRegion(r));
 
         document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
@@ -564,11 +622,16 @@
         document.getElementById('audioFile').onchange = e => { 
             const file = e.target.files[0];
             if(file) { 
+                currentFileName = file.name;
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 currentObjectURL = URL.createObjectURL(file);
-                // 選択されたファイル名をボタンに表示
                 document.getElementById('fileSelectBtn').innerText = file.name;
-                analyzeAudio(file); wavesurfer.load(currentObjectURL);
+                
+                // 新しい曲読み込み時は一旦クリア
+                wsRegions.clearRegions();
+                
+                analyzeAudio(file); 
+                wavesurfer.load(currentObjectURL);
             } 
         };
         
@@ -589,7 +652,20 @@
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
         };
 
-        wavesurfer.on('ready', () => { document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); applySettings(); if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); });
+        wavesurfer.on('ready', () => { 
+            document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
+            applySettings(); 
+            
+            // ファイル名に基づくループ復元
+            const saved = localStorage.getItem('file_loop_' + currentFileName);
+            if (saved) {
+                const data = JSON.parse(saved);
+                wsRegions.addRegion({ start: data.start, end: data.end, color: 'rgba(212, 163, 115, 0.2)' });
+            } else if(firstSoundTime > 0) {
+                wavesurfer.setTime(firstSoundTime); 
+            }
+        });
+
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
