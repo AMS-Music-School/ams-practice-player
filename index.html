@@ -160,8 +160,7 @@
         #toggleLoopBtn { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border-color); transition: all 0.3s ease; }
         #toggleLoopBtn.active { background: var(--primary-color); color: #121212; border: 1px solid var(--primary-color); font-weight: bold; }
         
-        /* ループリスト用スタイル */
-        .loop-list-container { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; }
+        .loop-list-container { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; max-height: 200px; overflow-y: auto; }
         .loop-item { 
             background: #252525; padding: 8px 12px; border-radius: 8px; margin-bottom: 6px; 
             display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;
@@ -260,13 +259,12 @@
             <button class="clear-btn-ja" onclick="wsRegions.clearRegions()" id="clearRangeBtn">
                 <span class="material-icons" style="font-size:16px;">layers_clear</span> 範囲解除
             </button>
-            <button class="clear-btn-ja" onclick="saveLoop()" id="saveLoopBtn" style="border: 1px solid var(--primary-color);">
+            <button class="clear-btn-ja" onclick="saveLoop('file')" id="saveLoopBtn" style="border: 1px solid var(--primary-color);">
                 <span class="material-icons" style="font-size:16px;">bookmark_add</span> ループ保存
             </button>
         </div>
 
-        <!-- ループリスト -->
-        <div id="loopList" class="loop-list-container"></div>
+        <div id="loopListFile" class="loop-list-container"></div>
         
         <div class="transport-controls">
             <button class="btn-ctrl active" id="countToggleBtn" onclick="toggleFeature('count')">
@@ -318,10 +316,14 @@
                     <button class="adj-btn" onclick="adjustTime('end', 1)">+1s</button>
                 </div>
             </div>
-            <div class="row" style="justify-content: center; margin-top:5px;">
-                <button id="toggleLoopBtn" class="tab-btn" style="width:160px;" onclick="toggleLoop()">LOOP OFF</button>
+            <div class="row" style="justify-content: center; gap: 10px;">
+                <button id="toggleLoopBtn" class="tab-btn" style="width:140px;" onclick="toggleLoop()">LOOP OFF</button>
+                <button class="clear-btn-ja" onclick="saveLoop('yt')" id="saveLoopBtnYT" style="border: 1px solid var(--primary-color); border-radius: 6px; padding: 8px 12px;">
+                    <span class="material-icons" style="font-size:16px;">bookmark_add</span> SAVE
+                </button>
             </div>
         </div>
+        <div id="loopListYT" class="loop-list-container"></div>
     </div>
 </div>
 
@@ -333,7 +335,7 @@
             setStart: "開始位置", setEnd: "終了位置", loopOff: "ループ OFF", loopOn: "ループ ON",
             fileSelect: "ファイルを選択", saveLoop: "ループ保存",
             guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li><li>ループ保存: 現在の範囲を保存してリスト化できます。</li></ul>",
-            guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>読み込み: URLを貼り付けてLOADを押します。</li><li>ループ: SET START/ENDで区間を決めます。</li></ul>"
+            guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>読み込み: URLを貼り付けてLOADを押します。</li><li>ループ: SET START/ENDで区間を決めます。</li><li>SAVE: YouTube動画ごとに複数のループを保存できます。</li></ul>"
         },
         en: {
             langTitle: "Language Settings", helpTitle: "Help & Guide", guideFile: "Audio File Mode Guide", guideYT: "YouTube Mode Guide",
@@ -341,9 +343,8 @@
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
             fileSelect: "Select Audio File", saveLoop: "Save Loop",
             guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
-            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li></ul>"
+            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
         }
-        // 他の言語は必要に応じて追加
     };
 
     function changeLanguage() {
@@ -365,9 +366,7 @@
         
         const fileInput = document.getElementById('audioFile');
         const fileLabel = document.getElementById('fileSelectBtn');
-        if (!fileInput.files.length) {
-            fileLabel.innerText = t.fileSelect;
-        }
+        if (!fileInput.files.length) fileLabel.innerText = t.fileSelect;
 
         const loadS = document.getElementById('loadStatus');
         if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備")) loadS.innerText = t.ready;
@@ -385,8 +384,7 @@
     }
 
     function showGuide(type) {
-        toggleMenu(false);
-        closeModals();
+        toggleMenu(false); closeModals();
         if (type === 'file') document.getElementById('guideModalFile').style.display = 'block';
         if (type === 'yt') document.getElementById('guideModalYT').style.display = 'block';
         document.getElementById('menuOverlay').style.display = 'block';
@@ -400,12 +398,9 @@
 
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
-    let audioCtx, firstSoundTime = 0;
-    let originalBpm = 120;
-    let currentObjectURL = null;
-    let currentFileName = "";
-    let isCountEnabled = true;
-    let isSpeedUpEnabled = false;
+    let audioCtx, firstSoundTime = 0, originalBpm = 120;
+    let currentObjectURL = null, currentFileName = "", currentYTId = "";
+    let isCountEnabled = true, isSpeedUpEnabled = false;
 
     function toggleFeature(type) {
         if (type === 'count') {
@@ -441,10 +436,7 @@
             }
             firstSoundTime = skip;
             const bpm = detectBPM(audioBuffer);
-            if (bpm > 0) {
-                originalBpm = Math.round(bpm);
-                updateBpmDisplay(); 
-            }
+            if (bpm > 0) { originalBpm = Math.round(bpm); updateBpmDisplay(); }
             document.getElementById('loadStatus').innerText = translations[lang].ready;
             if(wavesurfer) wavesurfer.setTime(firstSoundTime);
         } catch (e) {
@@ -459,18 +451,14 @@
     }
 
     function detectBPM(buffer) {
-        const data = buffer.getChannelData(0);
-        const sampleRate = buffer.sampleRate;
-        const step = 200;
-        const energy = [];
+        const data = buffer.getChannelData(0), sampleRate = buffer.sampleRate, step = 200, energy = [];
         for (let i = 0; i < data.length; i += step) {
             let sum = 0;
             for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j] * data[i+j];
             energy.push(Math.sqrt(sum/step));
         }
         let bestBpm = 0, maxCorrelation = 0;
-        const minInterval = Math.floor((60 / 200) * (sampleRate / step));
-        const maxInterval = Math.floor((60 / 60) * (sampleRate / step));
+        const minInterval = Math.floor((60 / 200) * (sampleRate / step)), maxInterval = Math.floor((60 / 60) * (sampleRate / step));
         for (let interval = minInterval; interval <= maxInterval; interval++) {
             let correlation = 0;
             for (let i = 0; i < Math.min(energy.length - interval, 10000); i++) correlation += energy[i] * energy[i + interval];
@@ -481,8 +469,7 @@
 
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
         osc.frequency.setValueAtTime(isLast ? 880 : 440, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
@@ -497,12 +484,10 @@
         const overlay = document.getElementById('countdown-overlay');
         overlay.style.display = 'block';
         for (let i = 1; i <= 4; i++) {
-            overlay.innerText = i;
-            playBeep(i === 4);
+            overlay.innerText = i; playBeep(i === 4);
             await new Promise(r => setTimeout(r, interval));
         }
-        overlay.style.display = 'none';
-        return true;
+        overlay.style.display = 'none'; return true;
     }
 
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
@@ -511,10 +496,14 @@
         const url = document.getElementById('ytUrl').value;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
         if (videoId) {
+            currentYTId = videoId;
+            document.getElementById('loopListYT').innerHTML = ""; // 初期化
             if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
-            else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onStateChange': onPlayerStateChange } });
+            else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange } });
+            renderLoopList('yt');
         }
     }
+    function onPlayerReady() { renderLoopList('yt'); }
     function onPlayerStateChange(e) {
         if (e.data == YT.PlayerState.PLAYING) loopInterval = setInterval(() => { if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) ytPlayer.seekTo(loopStart); }, 200);
         else clearInterval(loopInterval);
@@ -537,54 +526,77 @@
         b.classList.toggle('active', isLooping); 
     };
 
-    // ABループ保存・リスト表示機能
-    function saveLoop() {
-        const regions = wsRegions.getRegions();
-        if (regions.length === 0) return alert("ループ範囲を指定してください。");
-        const r = regions[0];
-        const name = prompt("ループの名前を入力してください", `Loop ${document.querySelectorAll('.loop-item').length + 1}`);
+    // 共通ループ保存機能
+    function saveLoop(mode) {
+        let start, end, key;
+        if (mode === 'file') {
+            const regions = wsRegions.getRegions();
+            if (regions.length === 0) return alert("ループ範囲を指定してください。");
+            start = regions[0].start; end = regions[0].end; key = currentFileName;
+        } else {
+            if (!currentYTId) return;
+            start = loopStart; end = loopEnd; key = currentYTId;
+            if (start >= end) return alert("開始位置は終了位置より前に設定してください。");
+        }
+
+        const name = prompt("ループの名前を入力してください", `Loop ${Date.now().toString().slice(-4)}`);
         if (!name) return;
 
-        const loopData = { name, start: r.start, end: r.end };
-        let allLoops = JSON.parse(localStorage.getItem('ams_loops') || "{}");
-        if (!allLoops[currentFileName]) allLoops[currentFileName] = [];
-        allLoops[currentFileName].push(loopData);
-        localStorage.setItem('ams_loops', JSON.stringify(allLoops));
-        renderLoopList();
+        const loopData = { name, start, end };
+        let storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        if (!allLoops[key]) allLoops[key] = [];
+        allLoops[key].push(loopData);
+        localStorage.setItem(storageKey, JSON.stringify(allLoops));
+        renderLoopList(mode);
     }
 
-    function renderLoopList() {
-        const container = document.getElementById('loopList');
+    function renderLoopList(mode) {
+        const container = mode === 'file' ? document.getElementById('loopListFile') : document.getElementById('loopListYT');
+        const key = mode === 'file' ? currentFileName : currentYTId;
+        const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
         container.innerHTML = "";
-        let allLoops = JSON.parse(localStorage.getItem('ams_loops') || "{}");
-        const loops = allLoops[currentFileName] || [];
+        if (!key) return;
+
+        let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        const loops = allLoops[key] || [];
         
         loops.forEach((loop, index) => {
             const div = document.createElement('div');
             div.className = 'loop-item';
             div.innerHTML = `
-                <div class="loop-info" onclick="loadLoopRange(${loop.start}, ${loop.end})">
+                <div class="loop-info" onclick="applyStoredLoop('${mode}', ${loop.start}, ${loop.end})">
                     <span class="loop-name">${loop.name}</span>
                     <span class="loop-times">${fmt(loop.start)} - ${fmt(loop.end)}</span>
                 </div>
-                <span class="material-icons loop-delete" onclick="deleteLoop(${index})">delete</span>
+                <span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${index})">delete</span>
             `;
             container.appendChild(div);
         });
     }
 
-    window.loadLoopRange = (start, end) => {
-        wsRegions.clearRegions();
-        wsRegions.addRegion({ start, end, color: 'rgba(212, 163, 115, 0.2)' });
-        wavesurfer.setTime(start);
+    window.applyStoredLoop = (mode, start, end) => {
+        if (mode === 'file') {
+            wsRegions.clearRegions();
+            wsRegions.addRegion({ start, end, color: 'rgba(212, 163, 115, 0.2)' });
+            wavesurfer.setTime(start);
+        } else {
+            loopStart = start; loopEnd = end;
+            document.getElementById('loopStartTxt').innerText = fmt(start);
+            document.getElementById('loopEndTxt').innerText = fmt(end);
+            ytPlayer.seekTo(start);
+            if (!isLooping) toggleLoop();
+        }
     };
 
-    window.deleteLoop = (index) => {
-        let allLoops = JSON.parse(localStorage.getItem('ams_loops') || "{}");
-        if (allLoops[currentFileName]) {
-            allLoops[currentFileName].splice(index, 1);
-            localStorage.setItem('ams_loops', JSON.stringify(allLoops));
-            renderLoopList();
+    window.deleteLoop = (mode, index) => {
+        const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        const key = mode === 'file' ? currentFileName : currentYTId;
+        let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        if (allLoops[key]) {
+            allLoops[key].splice(index, 1);
+            localStorage.setItem(storageKey, JSON.stringify(allLoops));
+            renderLoopList(mode);
         }
     };
 
@@ -604,43 +616,28 @@
             if(file) { 
                 currentFileName = file.name;
                 document.getElementById('fileSelectBtn').innerText = currentFileName;
-                
-                // 新しいファイル読み込み時に前の状態をリセット
                 wsRegions.clearRegions();
-                document.getElementById('loopList').innerHTML = "";
-                
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 currentObjectURL = URL.createObjectURL(file);
-                
-                // モバイル対応: 確実にロードさせてから解析
                 wavesurfer.load(currentObjectURL);
                 analyzeAudio(file);
-                renderLoopList();
+                renderLoopList('file');
             } 
         };
         
         const applySettings = () => {
-            const s = parseFloat(document.getElementById('speed').value);
-            const p = parseInt(document.getElementById('pitch').value);
+            const s = parseFloat(document.getElementById('speed').value), p = parseInt(document.getElementById('pitch').value);
             const media = wavesurfer.getMediaElement();
             if (media) {
                 media.preservesPitch = true;
-                if (media.detune !== undefined) {
-                    media.detune = p * 100; wavesurfer.setPlaybackRate(s);
-                } else {
-                    if (p !== 0) { media.preservesPitch = false; wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); } 
-                    else { media.preservesPitch = true; wavesurfer.setPlaybackRate(s); }
-                }
+                if (media.detune !== undefined) { media.detune = p * 100; wavesurfer.setPlaybackRate(s); }
+                else { if (p !== 0) { media.preservesPitch = false; wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); } else { media.preservesPitch = true; wavesurfer.setPlaybackRate(s); } }
             }
             updateBpmDisplay();
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
         };
 
-        wavesurfer.on('ready', () => { 
-            document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
-            applySettings(); 
-            if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
-        });
+        wavesurfer.on('ready', () => { document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); applySettings(); if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); });
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
@@ -648,11 +645,8 @@
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (wavesurfer.isPlaying()) wavesurfer.pause();
             else {
-                const current = wavesurfer.getCurrentTime();
-                const region = wsRegions.getRegions()[0];
-                if (isCountEnabled) {
-                    if (region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
-                }
+                const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
+                if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
                 await runCountdown(); wavesurfer.play();
             }
         };
@@ -666,8 +660,7 @@
                 wavesurfer.setTime(r.start); 
                 if (isSpeedUpEnabled) {
                     const s = document.getElementById('speed');
-                    s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2);
-                    applySettings();
+                    s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); applySettings();
                 }
             }
         });
