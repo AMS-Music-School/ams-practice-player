@@ -387,6 +387,7 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
+    // --- 曲ごとのABループ保存 ---
     function saveLoop() {
         if (!currentFileName) return alert("Please load an audio file first.");
         const region = wsRegions.getRegions()[0];
@@ -426,6 +427,7 @@
         renderLoopList();
     }
 
+    // --- YouTubeリスト保存 ---
     function saveYTVideo() {
         const url = document.getElementById('ytUrl').value;
         if (!url) return;
@@ -460,14 +462,17 @@
         renderYTList();
     }
 
+    // --- 設定反映 (Speed & Pitch) ---
     const applySettings = () => {
         if (!wavesurfer) return;
         const s = parseFloat(document.getElementById('speed').value);
         const p = parseInt(document.getElementById('pitch').value);
         const m = wavesurfer.getMediaElement();
         if (m) { 
+            // 速度にかかわらずピッチを維持する設定
             m.preservesPitch = true; 
             wavesurfer.setPlaybackRate(s); 
+            // ピッチ（半音）の変更。detuneはセント単位（100セント=1半音）
             if (m.detune !== undefined) {
                 m.detune = p * 100;
             } else if (m.mozPreservesPitch !== undefined) {
@@ -478,17 +483,17 @@
         document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
     };
 
+    // --- 音声解析 ---
     async function analyzeAudio(file) {
         const lang = document.getElementById('langSelect').value;
         document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).analyzing;
-        
-        // モバイル対応: ArrayBufferからのデコード
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
         try {
             const arrayBuf = await file.arrayBuffer();
             const buf = await tempCtx.decodeAudioData(arrayBuf);
             const data = buf.getChannelData(0);
             
+            // 無音部分のスキップ検出
             for (let i = 0; i < data.length; i++) { 
                 if (Math.abs(data[i]) > 0.015) { 
                     firstSoundTime = i / buf.sampleRate; 
@@ -496,8 +501,13 @@
                 } 
             }
             
+            // BPM検出の精度向上版
             const bpm = detectBPM(buf);
-            originalBpm = (bpm > 0) ? Math.round(bpm) : 120;
+            if (bpm > 0) { 
+                originalBpm = Math.round(bpm); 
+            } else {
+                originalBpm = 120; // 検出不能時のデフォルト
+            }
             
             applySettings();
             document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).ready;
@@ -508,9 +518,12 @@
         } finally { tempCtx.close(); }
     }
 
+    // BPM検出アルゴリズム（オートコリレーション法）
     function detectBPM(buffer) {
         const data = buffer.getChannelData(0);
         const sampleRate = buffer.sampleRate;
+        
+        // 低解像度でエネルギー計算を行う（計算量削減）
         const step = 250; 
         const energy = [];
         for (let i = 0; i < data.length; i += step) {
@@ -518,12 +531,17 @@
             for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j]**2;
             energy.push(Math.sqrt(sum/step));
         }
+        
         let bestBpm = 0;
         let maxCorrelation = 0;
+        
+        // BPM 60〜200の範囲でサーチ
         const minInterval = Math.floor((60 / 200) * (sampleRate / step));
         const maxInterval = Math.floor((60 / 60) * (sampleRate / step));
+        
         for (let interval = minInterval; interval <= maxInterval; interval++) {
             let correlation = 0;
+            // 先頭付近のサンプルを使って相関を計算
             const searchLimit = Math.min(energy.length - interval, 4000);
             for (let j = 0; j < searchLimit; j++) {
                 correlation += energy[j] * energy[j + interval];
@@ -533,11 +551,15 @@
                 bestBpm = 60 / (interval * step / sampleRate);
             }
         }
+        
+        // 倍テンポ・半分テンポの補正（簡易版）
         if (bestBpm < 75) bestBpm *= 2;
         if (bestBpm > 150) bestBpm /= 2;
+
         return (bestBpm < 50 || bestBpm > 250) ? 0 : bestBpm;
     }
 
+    // --- YT Player ---
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
     function loadYouTube() {
@@ -571,18 +593,9 @@
         b.classList.toggle('active', isLooping); 
     }
 
+    // --- Main Logic ---
     function startApp() {
-        // モバイル修正点: backendを 'WebAudio' に明示的に設定し、メディア要素を確実に制御可能にします
-        wavesurfer = WaveSurfer.create({ 
-            container: '#waveform', 
-            waveColor: '#333', 
-            progressColor: '#d4a373', 
-            height: 120, 
-            barWidth: 2, 
-            normalize: true,
-            backend: 'WebAudio'
-        });
-
+        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
@@ -590,17 +603,12 @@
         document.getElementById('audioFile').onchange = e => {
             const f = e.target.files[0];
             if(f) { 
-                // モバイルでのメモリ解放
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
-                
                 currentObjectURL = URL.createObjectURL(f);
                 currentFileName = f.name;
                 document.getElementById('fileBtnLabel').innerText = f.name;
                 wsRegions.clearRegions();
-                
-                // モバイル修正点: ロードと解析を確実に分離し、blobを直接渡します
-                analyzeAudio(f); 
-                wavesurfer.load(currentObjectURL);
+                analyzeAudio(f); wavesurfer.load(currentObjectURL);
                 renderLoopList();
             }
         };
@@ -626,14 +634,7 @@
         });
 
         document.getElementById('playBtn').onclick = async () => {
-            // モバイル修正点: ユーザーアクション内でのAudioContextリスタート
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') await audioCtx.resume();
-            
-            // Wavesurferのコンテキストも同期
-            const wsCtx = wavesurfer.getActiveAudioContext();
-            if (wsCtx && wsCtx.state === 'suspended') await wsCtx.resume();
-
             if (wavesurfer.isPlaying()) wavesurfer.pause();
             else {
                 if (isCountEnabled) {
@@ -659,8 +660,10 @@
         wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
         document.getElementById('zoomSlider').oninput = e => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
+        
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
+        
         window.resetSetting = (id, v) => { document.getElementById(id).value = v; applySettings(); };
 
         const localLoops = localStorage.getItem('ams_saved_loops_v2');
