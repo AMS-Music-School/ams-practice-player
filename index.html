@@ -390,12 +390,13 @@
     // --- 曲ごとのABループ保存 ---
     function saveLoop() {
         if (!currentFileName) return alert("Please load an audio file first.");
-        const region = wsRegions.getRegions()[Object.keys(wsRegions.getRegions())[0]];
-        if (!region) return;
+        const regions = wsRegions.getRegions();
+        const firstRegion = Object.values(regions)[0];
+        if (!firstRegion) return;
         const name = prompt("Name this loop:", `Loop ${(allSavedLoops[currentFileName] || []).length + 1}`);
         if (name) {
             if (!allSavedLoops[currentFileName]) allSavedLoops[currentFileName] = [];
-            allSavedLoops[currentFileName].push({ name, start: region.start, end: region.end });
+            allSavedLoops[currentFileName].push({ name, start: firstRegion.start, end: firstRegion.end });
             localStorage.setItem('ams_saved_loops_v2', JSON.stringify(allSavedLoops));
             renderLoopList();
         }
@@ -462,26 +463,22 @@
         renderYTList();
     }
 
-    // --- 設定反映 (Speed & Pitch) 修正版 ---
+    // --- 設定反映 (Speed & Pitch) ---
     const applySettings = () => {
         if (!wavesurfer) return;
         const s = parseFloat(document.getElementById('speed').value);
         const p = parseInt(document.getElementById('pitch').value);
         const m = wavesurfer.getMediaElement();
-        
         if (m) { 
-            // 重要: Pitch(Key)変更時はブラウザの自動ピッチ維持をOFFにする必要がある
-            // ただし、Pitch 0 の時は速度を変えてもピッチが変わらないようONにする
-            m.preservesPitch = (p === 0); 
-            
-            // 再生速度のセット
+            // 重要：ピッチを変更する場合、PreservesPitchをfalseに設定する必要がある場合がある
+            // ただし現代のブラウザではdetuneを使用するため、trueのままでdetuneを適用する
+            m.preservesPitch = true; 
             wavesurfer.setPlaybackRate(s); 
-            
             // ピッチ（半音）の変更。detuneはセント単位（100セント=1半音）
             if (m.detune !== undefined) {
                 m.detune = p * 100;
             } else if (m.mozPreservesPitch !== undefined) {
-                m.mozPreservesPitch = (p === 0);
+                m.mozPreservesPitch = true;
             }
         }
         document.getElementById('spTxt').innerText = "BPM " + Math.round(originalBpm * s);
@@ -491,7 +488,7 @@
     // --- 音声解析 ---
     async function analyzeAudio(file) {
         const lang = document.getElementById('langSelect').value;
-        document.getElementById('loadStatus').innerText = translations[lang].analyzing;
+        document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).analyzing;
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
         try {
             const arrayBuf = await file.arrayBuffer();
@@ -515,15 +512,15 @@
             }
             
             applySettings();
-            document.getElementById('loadStatus').innerText = translations[lang].ready;
+            document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).ready;
             if(wavesurfer) wavesurfer.setTime(firstSoundTime);
         } catch (e) {
             console.error("Audio analysis error:", e);
-            document.getElementById('loadStatus').innerText = translations[lang].ready;
+            document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).ready;
         } finally { tempCtx.close(); }
     }
 
-    // BPM検出アルゴリズム（精度向上版）
+    // BPM検出アルゴリズム（オートコリレーション法）
     function detectBPM(buffer) {
         const data = buffer.getChannelData(0);
         const sampleRate = buffer.sampleRate;
@@ -556,7 +553,6 @@
             }
         }
         
-        // 倍テンポ・半分テンポの補正
         if (bestBpm < 75) bestBpm *= 2;
         if (bestBpm > 150) bestBpm /= 2;
 
@@ -599,15 +595,7 @@
 
     // --- Main Logic ---
     function startApp() {
-        wavesurfer = WaveSurfer.create({ 
-            container: '#waveform', 
-            waveColor: '#333', 
-            progressColor: '#d4a373', 
-            height: 120, 
-            barWidth: 2, 
-            normalize: true 
-        });
-        
+        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         
@@ -626,8 +614,7 @@
                 currentFileName = f.name;
                 document.getElementById('fileBtnLabel').innerText = f.name;
                 wsRegions.clearRegions();
-                analyzeAudio(f); 
-                wavesurfer.load(currentObjectURL);
+                analyzeAudio(f); wavesurfer.load(currentObjectURL);
                 renderLoopList();
             }
         };
@@ -641,41 +628,33 @@
         wavesurfer.on('timeupdate', t => {
             document.getElementById('currentTime').innerText = fmt(t);
             const regions = wsRegions.getRegions();
-            const keys = Object.keys(regions);
-            if(keys.length > 0) {
-                const r = regions[keys[0]];
-                if(t >= r.end && Date.now() - lastJump > 200) { 
-                    wavesurfer.setTime(r.start); 
-                    if (isSpeedUpEnabled) { 
-                        const s = document.getElementById('speed'); 
-                        s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); 
-                        applySettings(); 
-                    }
-                    lastJump = Date.now();
+            const firstRegion = Object.values(regions)[0];
+            if(firstRegion && t >= firstRegion.end && Date.now() - lastJump > 200) { 
+                wavesurfer.setTime(firstRegion.start); 
+                if (isSpeedUpEnabled) { 
+                    const s = document.getElementById('speed'); 
+                    s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); 
+                    applySettings(); 
                 }
+                lastJump = Date.now();
             }
         });
 
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (wavesurfer.isPlaying()) {
-                wavesurfer.pause();
-            } else {
+            if (wavesurfer.isPlaying()) wavesurfer.pause();
+            else {
                 if (isCountEnabled) {
-                    const overlay = document.getElementById('countdown-overlay'); 
-                    overlay.style.display = 'block';
+                    const overlay = document.getElementById('countdown-overlay'); overlay.style.display = 'block';
                     const sVal = parseFloat(document.getElementById('speed').value);
                     const beat = 60000 / (originalBpm * (sVal > 0 ? sVal : 1));
-                    
                     for (let i = 1; i <= 4; i++) {
                         overlay.innerText = i;
-                        const osc = audioCtx.createOscillator(); 
-                        const g = audioCtx.createGain();
+                        const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
                         osc.frequency.value = i === 4 ? 880 : 440; 
                         g.gain.setValueAtTime(0.1, audioCtx.currentTime);
                         g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-                        osc.connect(g); g.connect(audioCtx.destination); 
-                        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                        osc.connect(g); g.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
                         await new Promise(r => setTimeout(r, beat));
                     }
                     overlay.style.display = 'none';
@@ -686,12 +665,8 @@
 
         wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
         wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
-        
         document.getElementById('zoomSlider').oninput = e => wavesurfer.zoom(Number(e.target.value));
-        document.getElementById('resetZoomBtn').onclick = () => { 
-            wavesurfer.zoom(0); 
-            document.getElementById('zoomSlider').value = 100; 
-        };
+        document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 100; };
         
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
