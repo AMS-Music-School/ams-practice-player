@@ -170,6 +170,18 @@
         .loop-times { color: var(--text-dim); font-size: 0.7rem; }
         .loop-delete { color: #ff5555; cursor: pointer; padding: 5px; }
 
+        /* 履歴アイテムのスタイル */
+        .history-card {
+            background: #252525; border: 1px solid var(--border-color); border-radius: 6px;
+            padding: 6px 10px; min-width: 120px; max-width: 180px; flex-shrink: 0;
+            display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+        }
+        .history-label {
+            font-size: 0.7rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .history-del { color: #ff5555; font-size: 14px; margin-left: 5px; }
+        #ytHistoryList::-webkit-scrollbar { display: none; }
+
         @media (max-width: 480px) {
             .transport-controls { gap: 8px; }
             .btn-ctrl { width: 42px; height: 42px; }
@@ -293,10 +305,22 @@
     </div>
 
     <div id="yt-section" class="content-section">
-        <div style="display:flex; gap:8px; margin-bottom:15px; background:var(--panel-bg); padding:10px; border-radius:10px; border: 1px solid var(--border-color);">
+        <div style="display:flex; gap:8px; margin-bottom:10px; background:var(--panel-bg); padding:10px; border-radius:10px; border: 1px solid var(--border-color);">
             <input type="text" id="ytUrl" placeholder="YouTube URL..." style="flex-grow:1; padding:10px; border:1px solid var(--border-color); background:#000; color:#fff; border-radius:6px; font-size:0.8rem;">
             <button class="tab-btn active" style="flex:0; min-width:60px;" onclick="loadYouTube()">LOAD</button>
         </div>
+
+        <!-- 履歴表示エリア -->
+        <div id="ytHistoryContainer" style="margin-bottom: 15px; display: none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                <span style="font-size:0.7rem; color:var(--primary-color); font-weight:bold;">RECENT HISTORY</span>
+                <button class="reset-btn" onclick="clearYTHistory()" style="font-size:0.6rem;">Clear All</button>
+            </div>
+            <div id="ytHistoryList" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:5px; scrollbar-width: none;">
+                <!-- 履歴アイテム -->
+            </div>
+        </div>
+
         <div id="ytPlayerContainer"><div id="player"></div></div>
         
         <div class="panel" style="margin-top:15px;">
@@ -418,7 +442,10 @@
         document.getElementById('yt-section').classList.toggle('active', mode === 'yt');
         document.getElementById('tab-file').classList.toggle('active', mode === 'file');
         document.getElementById('tab-yt').classList.toggle('active', mode === 'yt');
-        if(mode === 'yt' && wavesurfer) wavesurfer.pause();
+        if(mode === 'yt') {
+            if(wavesurfer) wavesurfer.pause();
+            renderYTHistory();
+        }
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
@@ -492,17 +519,65 @@
 
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
-    function loadYouTube() {
-        const url = document.getElementById('ytUrl').value;
+
+    function loadYouTube(manualUrl = null) {
+        const url = manualUrl || document.getElementById('ytUrl').value;
+        if (!url) return;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
         if (videoId) {
             currentYTId = videoId;
-            document.getElementById('loopListYT').innerHTML = ""; // 初期化
+            document.getElementById('loopListYT').innerHTML = ""; 
             if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
             else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange } });
+            
+            saveToHistory(videoId, url);
             renderLoopList('yt');
+            document.getElementById('ytUrl').value = "";
         }
     }
+
+    function saveToHistory(id, url) {
+        let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
+        history = history.filter(item => item.id !== id);
+        history.unshift({ id: id, url: url, time: Date.now() });
+        if (history.length > 10) history.pop();
+        localStorage.setItem('ams_yt_history', JSON.stringify(history));
+        renderYTHistory();
+    }
+
+    function renderYTHistory() {
+        const historyList = document.getElementById('ytHistoryList');
+        const container = document.getElementById('ytHistoryContainer');
+        const history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
+        if (history.length === 0) { container.style.display = 'none'; return; }
+        container.style.display = 'block';
+        historyList.innerHTML = "";
+        history.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'history-card';
+            card.onclick = () => loadYouTube(item.url);
+            card.innerHTML = `
+                <span class="history-label">ID: ${item.id}</span>
+                <span class="material-icons history-del" onclick="event.stopPropagation(); deleteHistoryItem('${item.id}')">cancel</span>
+            `;
+            historyList.appendChild(card);
+        });
+    }
+
+    window.deleteHistoryItem = (id) => {
+        let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
+        history = history.filter(item => item.id !== id);
+        localStorage.setItem('ams_yt_history', JSON.stringify(history));
+        renderYTHistory();
+    };
+
+    window.clearYTHistory = () => {
+        if (confirm("履歴をすべて削除しますか？")) {
+            localStorage.removeItem('ams_yt_history');
+            renderYTHistory();
+        }
+    };
+
     function onPlayerReady() { renderLoopList('yt'); }
     function onPlayerStateChange(e) {
         if (e.data == YT.PlayerState.PLAYING) loopInterval = setInterval(() => { if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) ytPlayer.seekTo(loopStart); }, 200);
@@ -526,7 +601,6 @@
         b.classList.toggle('active', isLooping); 
     };
 
-    // 共通ループ保存機能
     function saveLoop(mode) {
         let start, end, key;
         if (mode === 'file') {
@@ -538,10 +612,8 @@
             start = loopStart; end = loopEnd; key = currentYTId;
             if (start >= end) return alert("開始位置は終了位置より前に設定してください。");
         }
-
         const name = prompt("ループの名前を入力してください", `Loop ${Date.now().toString().slice(-4)}`);
         if (!name) return;
-
         const loopData = { name, start, end };
         let storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
         let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -557,10 +629,8 @@
         const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
         container.innerHTML = "";
         if (!key) return;
-
         let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
         const loops = allLoops[key] || [];
-        
         loops.forEach((loop, index) => {
             const div = document.createElement('div');
             div.className = 'loop-item';
@@ -667,6 +737,7 @@
 
         window.resetSetting = (id, val) => { document.getElementById(id).value = val; applySettings(); };
         changeLanguage();
+        renderYTHistory();
     }
     startApp();
 </script>
