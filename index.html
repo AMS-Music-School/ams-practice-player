@@ -82,7 +82,13 @@
         .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); }
         .play-main { background: var(--primary-color); color: #121212 !important; width: 60px; height: 60px; border: none; }
 
-        input[type="file"] { width: 100%; padding: 12px; border: 2px dashed var(--border-color); border-radius: 10px; margin-bottom: 12px; background: #181818; color: #888; font-size: 0.8rem; }
+        /* カスタムファイル入力のスタイル */
+        .custom-file-upload {
+            display: block; width: 100%; padding: 12px; border: 2px dashed var(--border-color); 
+            border-radius: 10px; margin-bottom: 12px; background: #181818; color: #888; 
+            font-size: 0.8rem; text-align: center; cursor: pointer;
+        }
+        input[type="file"] { display: none; }
 
         #countdown-overlay { 
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
@@ -120,7 +126,6 @@
         }
         .menu-item:hover { background: #333; }
 
-        /* 言語選択セレクトボックスのスタイル */
         .lang-select {
             width: 100%; padding: 10px; background: #2a2a2a; color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem;
         }
@@ -205,14 +210,12 @@
 </div>
 
 <div id="guideModalFile" class="modal">
-    <div class="guide-box-inner" id="guideFileContent">
-        </div>
+    <div class="guide-box-inner" id="guideFileContent"></div>
     <button class="clear-btn-ja" id="closeBtn1" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
 </div>
 
 <div id="guideModalYT" class="modal">
-    <div class="guide-box-inner" id="guideYTContent">
-        </div>
+    <div class="guide-box-inner" id="guideYTContent"></div>
     <button class="clear-btn-ja" id="closeBtn2" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
 </div>
 
@@ -225,6 +228,8 @@
     </div>
 
     <div id="file-section" class="content-section active">
+        <!-- ファイル入力部分をカスタムラベル化 -->
+        <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">ファイルを選択</label>
         <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .mp4, .ogg, .flac, .webma">
 
         <div class="waveform-label">
@@ -306,12 +311,13 @@
 </div>
 
 <script>
-    // 翻訳データ
+    // 翻訳データ（ファイル選択ボタンの項目を追加）
     const translations = {
         ja: {
             langTitle: "言語設定", helpTitle: "ヘルプ & ガイド", guideFile: "Audio Fileモード ガイド", guideYT: "YouTubeモード ガイド",
             close: "閉じる", fit: "全体表示", clear: "範囲解除", ready: "準備完了", analyzing: "解析中...",
             setStart: "開始位置", setEnd: "終了位置", loopOff: "ループ OFF", loopOn: "ループ ON",
+            fileSelect: "ファイルを選択",
             guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li></ul>",
             guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>読み込み: URLを貼り付けてLOADを押します。</li><li>ループ: SET START/ENDで区間を決めます。</li></ul>"
         },
@@ -319,6 +325,7 @@
             langTitle: "Language Settings", helpTitle: "Help & Guide", guideFile: "Audio File Mode Guide", guideYT: "YouTube Mode Guide",
             close: "Close", fit: "FIT", clear: "Clear Loop", ready: "READY", analyzing: "ANALYZING...",
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
+            fileSelect: "Select Audio File",
             guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li></ul>",
             guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li></ul>"
         },
@@ -326,6 +333,7 @@
             langTitle: "语言设置", helpTitle: "帮助与指南", guideFile: "音频文件模式指南", guideYT: "YouTube模式指南",
             close: "关闭", fit: "自适应", clear: "解除范围", ready: "就绪", analyzing: "解析中...",
             setStart: "设置开始", setEnd: "设置结束", loopOff: "循环 关闭", loopOn: "循环 开启",
+            fileSelect: "选择音频文件",
             guideFileContent: "<b>【音频文件模式】指南</b><ul><li>选择文件: 请选择音频文件。</li><li>速度: 滑动条调整播放速度。</li><li>循环: 在波形上拖动以设定范围。</li></ul>",
             guideYTContent: "<b>【YouTube模式】指南</b><ul><li>加载: 粘贴URL并点击LOAD。</li><li>循环: 点击SET START/END设定区间。</li></ul>"
         },
@@ -333,6 +341,7 @@
             langTitle: "Idioma", helpTitle: "Ayuda y Guía", guideFile: "Guía Modo Archivo", guideYT: "Guía Modo YouTube",
             close: "Cerrar", fit: "Ajustar", clear: "Borrar rango", ready: "LISTO", analyzing: "ANALIZANDO...",
             setStart: "INICIO", setEnd: "FINAL", loopOff: "BUCLE OFF", loopOn: "BUCLE ON",
+            fileSelect: "Seleccionar archivo",
             guideFileContent: "<b>【Modo de Archivo】Guía</b><ul><li>Seleccionar: Elija un archivo de audio.</li><li>Velocidad: Ajuste la velocidad con el control.</li><li>Bucle: Arrastre en la onda para fijar el rango.</li></ul>",
             guideYTContent: "<b>【Modo YouTube】Guía</b><ul><li>Cargar: Pegue la URL y presione LOAD.</li><li>Bucle: Presione SET START/END para definir.</li></ul>"
         },
@@ -340,6 +349,7 @@
             langTitle: "언어 설정", helpTitle: "도움말 및 가이드", guideFile: "파일 모드 가이드", guideYT: "YouTube 모드 가이드",
             close: "닫기", fit: "전체보기", clear: "범위 해제", ready: "준비 완료", analyzing: "분석 중...",
             setStart: "시작 설정", setEnd: "종료 설정", loopOff: "루프 꺼짐", loopOn: "루프 켜짐",
+            fileSelect: "파일 선택",
             guideFileContent: "<b>【파일 모드】가이드</b><ul><li>파일 선택: 음악 파일을 선택하세요.</li><li>속도: 슬라이더로 재생 속도를 조절하세요.</li><li>루프: 파형을 드래그하여 범위를 설정하세요.</li></ul>",
             guideYTContent: "<b>【YouTube 모드】가이드</b><ul><li>로드: URL을 붙여넣고 LOAD를 누르세요.</li><li>루프: SET START/END로 구간을 설정하세요.</li></ul>"
         }
@@ -361,8 +371,15 @@
         document.getElementById('guideFileContent').innerHTML = t.guideFileContent;
         document.getElementById('guideYTContent').innerHTML = t.guideYTContent;
         
+        // ファイル選択ボタンのテキスト更新（選択されたファイル名がない場合のみ）
+        const fileInput = document.getElementById('audioFile');
+        const fileLabel = document.getElementById('fileSelectBtn');
+        if (!fileInput.files.length) {
+            fileLabel.innerText = t.fileSelect;
+        }
+
         const loadS = document.getElementById('loadStatus');
-        if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備") || loadS.innerText.includes("就緒")) loadS.innerText = t.ready;
+        if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備") || loadS.innerText.includes("就緒") || loadS.innerText.includes("LISTO")) loadS.innerText = t.ready;
         
         const loopB = document.getElementById('toggleLoopBtn');
         loopB.innerText = isLooping ? t.loopOn : t.loopOff;
@@ -549,6 +566,8 @@
             if(file) { 
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 currentObjectURL = URL.createObjectURL(file);
+                // 選択されたファイル名をボタンに表示
+                document.getElementById('fileSelectBtn').innerText = file.name;
                 analyzeAudio(file); wavesurfer.load(currentObjectURL);
             } 
         };
