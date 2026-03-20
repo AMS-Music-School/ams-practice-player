@@ -46,7 +46,7 @@
         
         #waveform-wrapper { 
             position: relative; background: #000; border: 1px solid var(--border-color); 
-            border-radius: 8px; margin-bottom: 10px; overflow: hidden; min-height: 100px;
+            border-radius: 8px; margin-bottom: 10px; overflow: hidden; min-height: 128px;
         }
         
         .waveform-label { 
@@ -116,15 +116,14 @@
         .loop-times { color: var(--text-dim); font-size: 0.7rem; }
         .loop-delete { color: #ff5555; cursor: pointer; padding: 5px; }
 
-        /* YouTube History Styles */
         .history-container { margin-top: 15px; display: none; }
         .history-list { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
         .history-card { 
             background: #252525; border: 1px solid var(--border-color); border-radius: 8px; 
-            padding: 8px; min-width: 150px; max-width: 150px; position: relative; cursor: pointer;
+            padding: 8px; min-width: 140px; max-width: 140px; position: relative; cursor: pointer;
         }
-        .history-title { font-size: 0.7rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
-        .history-del { position: absolute; top: 2px; right: 2px; color: #ff5555; font-size: 16px; background: rgba(0,0,0,0.5); border-radius: 50%; }
+        .history-title { font-size: 0.65rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-del { position: absolute; top: -5px; right: -5px; color: #ff5555; font-size: 18px; background: #121212; border-radius: 50%; }
 
         .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
     </style>
@@ -245,7 +244,7 @@
         </div>
 
         <div class="history-container" id="historyContainer">
-            <div style="font-size: 0.75rem; color: var(--primary-color); margin-bottom: 5px;">RECENT VIDEOS</div>
+            <div style="font-size: 0.75rem; color: var(--primary-color); margin-bottom: 5px;">RECENT (MAX 10)</div>
             <div class="history-list" id="ytHistoryList"></div>
         </div>
 
@@ -256,9 +255,26 @@
 <script>
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
-    let audioCtx, firstSoundTime = 0, originalBpm = 120;
+    let audioCtx = null, originalBpm = 120;
     let currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
+
+    // --- Sound Logic ---
+    function initAudioCtx() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }
+
+    function playBeep(isLast) {
+        initAudioCtx();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(isLast ? 880 : 440, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+    }
 
     // --- Audio File Loop Logic ---
     window.setFileLoopPoint = (type) => {
@@ -275,7 +291,7 @@
         wsRegions.clearRegions();
         wsRegions.addRegion({ id: 'loop', start, end, color: 'rgba(212, 163, 115, 0.2)', drag: true, resize: true });
         updateFileTimeDisplay(start, end);
-        wavesurfer.setTime(start); // ジャンプ
+        wavesurfer.setTime(start);
     };
 
     window.adjustFileTime = (type, amount) => {
@@ -299,16 +315,16 @@
     };
 
     // --- YouTube Logic ---
-    function loadYouTube(urlInput = null) {
+    window.loadYouTube = (urlInput = null) => {
         const url = urlInput || document.getElementById('ytUrl').value;
-        const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
+        const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : (url.length === 11 ? url : null);
         if (videoId) {
             currentYTId = videoId;
             if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
             else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange } });
             renderLoopList('yt');
         }
-    }
+    };
 
     function onPlayerReady(event) {
         const data = event.target.getVideoData();
@@ -333,7 +349,7 @@
         else { loopEnd = Math.max(loopStart + 0.1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); ytPlayer.seekTo(loopEnd); }
     };
 
-    // --- Storage Logic ---
+    // --- History Logic ---
     function saveToHistory(id, title) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
         history = history.filter(h => h.id !== id);
@@ -349,9 +365,9 @@
         if (history.length === 0) { container.style.display = 'none'; return; }
         container.style.display = 'block';
         list.innerHTML = history.map(h => `
-            <div class="history-card" onclick="loadYouTube('https://www.youtube.com/watch?v=${h.id}')">
+            <div class="history-card" onclick="loadYouTube('${h.id}')">
                 <div class="history-title">${h.title}</div>
-                <span class="material-icons history-del" onclick="event.stopPropagation(); deleteHistory('${h.id}')">close</span>
+                <span class="material-icons history-del" onclick="event.stopPropagation(); deleteHistory('${h.id}')">cancel</span>
             </div>
         `).join('');
     }
@@ -362,6 +378,7 @@
         renderHistory();
     };
 
+    // --- Loop Save/Delete ---
     window.saveLoop = (mode) => {
         let start, end, key = mode === 'file' ? currentFileName : currentYTId;
         if (!key) return;
@@ -376,6 +393,13 @@
         all[key].push({ name, start, end });
         localStorage.setItem(sKey, JSON.stringify(all));
         renderLoopList(mode);
+    };
+
+    window.deleteLoop = (mode, index) => {
+        const key = mode === 'file' ? currentFileName : currentYTId;
+        const sKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        let all = JSON.parse(localStorage.getItem(sKey) || "{}");
+        if (all[key]) { all[key].splice(index, 1); localStorage.setItem(sKey, JSON.stringify(all)); renderLoopList(mode); }
     };
 
     function renderLoopList(mode) {
@@ -398,13 +422,6 @@
         });
     }
 
-    window.deleteLoop = (mode, index) => {
-        const key = mode === 'file' ? currentFileName : currentYTId;
-        const sKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
-        let all = JSON.parse(localStorage.getItem(sKey) || "{}");
-        if (all[key]) { all[key].splice(index, 1); localStorage.setItem(sKey, JSON.stringify(all)); renderLoopList(mode); }
-    };
-
     window.applyLoop = (mode, s, e) => {
         if (mode === 'file') {
             wsRegions.clearRegions();
@@ -418,7 +435,7 @@
         }
     };
 
-    // --- Common Functions ---
+    // --- Core Functions ---
     window.toggleFeature = (type) => {
         if (type === 'count') { isCountEnabled = !isCountEnabled; document.getElementById('countToggleBtn').classList.toggle('active', isCountEnabled); }
         else if (type === 'speedup') { isSpeedUpEnabled = !isSpeedUpEnabled; document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled); }
@@ -430,9 +447,8 @@
         document.getElementById('yt-section').classList.toggle('active', mode === 'yt');
         document.getElementById('tab-file').classList.toggle('active', mode === 'file');
         document.getElementById('tab-yt').classList.toggle('active', mode === 'yt');
-        if(mode === 'yt' && wavesurfer) wavesurfer.pause();
+        if(mode === 'yt') { if(wavesurfer) wavesurfer.pause(); renderHistory(); }
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
-        if(mode === 'yt') renderHistory();
     };
 
     const fmt = (s) => {
@@ -450,24 +466,16 @@
         wsRegions.on('region-created', r => { 
             if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
             updateFileTimeDisplay(r.start, r.end); 
-            wavesurfer.setTime(r.start); // ドラッグ完了後に開始地点へジャンプ
+            wavesurfer.setTime(r.start);
         });
 
-        document.getElementById('audioFile').onchange = async (e) => {
+        document.getElementById('audioFile').onchange = e => {
             const file = e.target.files[0];
             if (file) {
                 currentFileName = file.name;
                 document.getElementById('fileSelectBtn').innerText = file.name;
                 wavesurfer.load(URL.createObjectURL(file));
                 renderLoopList('file');
-                // Simple BPM/Start Analysis
-                document.getElementById('loadStatus').innerText = "ANALYZING...";
-                const ctx = new AudioContext();
-                const buffer = await ctx.decodeAudioData(await file.arrayBuffer());
-                const data = buffer.getChannelData(0);
-                for (let i = 0; i < data.length; i++) { if (Math.abs(data[i]) > 0.015) { firstSoundTime = i / buffer.sampleRate; break; } }
-                document.getElementById('loadStatus').innerText = "READY";
-                ctx.close();
             }
         };
 
@@ -484,13 +492,14 @@
         document.getElementById('pitch').oninput = applySettings;
 
         document.getElementById('playBtn').onclick = async () => {
-            if (wavesurfer.isPlaying()) wavesurfer.pause();
+            initAudioCtx();
+            if (wavesurfer.isPlaying()) { wavesurfer.pause(); } 
             else {
                 if (isCountEnabled) {
                     const delay = 60000 / (originalBpm * parseFloat(document.getElementById('speed').value));
                     const overlay = document.getElementById('countdown-overlay');
                     overlay.style.display = 'block';
-                    for (let i = 1; i <= 4; i++) { overlay.innerText = i; await new Promise(r => setTimeout(r, delay)); }
+                    for (let i = 1; i <= 4; i++) { overlay.innerText = i; playBeep(i === 4); await new Promise(r => setTimeout(r, delay)); }
                     overlay.style.display = 'none';
                 }
                 wavesurfer.play();
