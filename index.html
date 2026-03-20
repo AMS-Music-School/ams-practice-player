@@ -8,8 +8,8 @@
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.6" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.6">
+    <link rel="icon" href="icon.png?v=1.0.7" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.7">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -469,9 +469,15 @@
         const p = parseInt(document.getElementById('pitch').value);
         const m = wavesurfer.getMediaElement();
         if (m) { 
+            // 速度にかかわらずピッチを維持する設定
             m.preservesPitch = true; 
             wavesurfer.setPlaybackRate(s); 
-            if (m.detune !== undefined) m.detune = p * 100; 
+            // ピッチ（半音）の変更。detuneはセント単位（100セント=1半音）
+            if (m.detune !== undefined) {
+                m.detune = p * 100;
+            } else if (m.mozPreservesPitch !== undefined) {
+                m.mozPreservesPitch = true;
+            }
         }
         document.getElementById('spTxt').innerText = "BPM " + Math.round(originalBpm * s);
         document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
@@ -483,35 +489,74 @@
         document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).analyzing;
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
         try {
-            const buf = await tempCtx.decodeAudioData(await file.arrayBuffer());
+            const arrayBuf = await file.arrayBuffer();
+            const buf = await tempCtx.decodeAudioData(arrayBuf);
             const data = buf.getChannelData(0);
-            for (let i = 0; i < data.length; i++) { if (Math.abs(data[i]) > 0.015) { firstSoundTime = i / buf.sampleRate; break; } }
+            
+            // 無音部分のスキップ検出
+            for (let i = 0; i < data.length; i++) { 
+                if (Math.abs(data[i]) > 0.015) { 
+                    firstSoundTime = i / buf.sampleRate; 
+                    break; 
+                } 
+            }
+            
+            // BPM検出の精度向上版
             const bpm = detectBPM(buf);
-            if (bpm > 0) { originalBpm = Math.round(bpm); }
+            if (bpm > 0) { 
+                originalBpm = Math.round(bpm); 
+            } else {
+                originalBpm = 120; // 検出不能時のデフォルト
+            }
+            
             applySettings();
             document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).ready;
             if(wavesurfer) wavesurfer.setTime(firstSoundTime);
         } catch (e) {
+            console.error("Audio analysis error:", e);
             document.getElementById('loadStatus').innerText = (translations[lang] || translations['en']).ready;
         } finally { tempCtx.close(); }
     }
 
+    // BPM検出アルゴリズム（オートコリレーション法）
     function detectBPM(buffer) {
         const data = buffer.getChannelData(0);
-        const step = 200;
+        const sampleRate = buffer.sampleRate;
+        
+        // 低解像度でエネルギー計算を行う（計算量削減）
+        const step = 250; 
         const energy = [];
         for (let i = 0; i < data.length; i += step) {
-            let sum = 0; for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j]**2;
+            let sum = 0; 
+            for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j]**2;
             energy.push(Math.sqrt(sum/step));
         }
-        let best = 0, maxC = 0;
-        const minI = Math.floor((60 / 200) * (buffer.sampleRate / step));
-        const maxI = Math.floor((60 / 60) * (buffer.sampleRate / step));
-        for (let i = minI; i <= maxI; i++) {
-            let c = 0; for (let j = 0; j < Math.min(energy.length - i, 5000); j++) c += energy[j] * energy[j + i];
-            if (c > maxC) { maxC = c; best = 60 / (i * step / buffer.sampleRate); }
+        
+        let bestBpm = 0;
+        let maxCorrelation = 0;
+        
+        // BPM 60〜200の範囲でサーチ
+        const minInterval = Math.floor((60 / 200) * (sampleRate / step));
+        const maxInterval = Math.floor((60 / 60) * (sampleRate / step));
+        
+        for (let interval = minInterval; interval <= maxInterval; interval++) {
+            let correlation = 0;
+            // 先頭付近のサンプルを使って相関を計算
+            const searchLimit = Math.min(energy.length - interval, 4000);
+            for (let j = 0; j < searchLimit; j++) {
+                correlation += energy[j] * energy[j + interval];
+            }
+            if (correlation > maxCorrelation) {
+                maxCorrelation = correlation;
+                bestBpm = 60 / (interval * step / sampleRate);
+            }
         }
-        return (best < 50 || best > 250) ? 0 : best;
+        
+        // 倍テンポ・半分テンポの補正（簡易版）
+        if (bestBpm < 75) bestBpm *= 2;
+        if (bestBpm > 150) bestBpm /= 2;
+
+        return (bestBpm < 50 || bestBpm > 250) ? 0 : bestBpm;
     }
 
     // --- YT Player ---
@@ -599,7 +644,9 @@
                     for (let i = 1; i <= 4; i++) {
                         overlay.innerText = i;
                         const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
-                        osc.frequency.value = i === 4 ? 880 : 440; g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                        osc.frequency.value = i === 4 ? 880 : 440; 
+                        g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
                         osc.connect(g); g.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.1);
                         await new Promise(r => setTimeout(r, beat));
                     }
@@ -614,13 +661,11 @@
         document.getElementById('zoomSlider').oninput = e => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
         
-        // スライダー変更時に即時反映
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
         
         window.resetSetting = (id, v) => { document.getElementById(id).value = v; applySettings(); };
 
-        // データの復元
         const localLoops = localStorage.getItem('ams_saved_loops_v2');
         if (localLoops) { allSavedLoops = JSON.parse(localLoops); }
         const localVideos = localStorage.getItem('ams_saved_videos');
