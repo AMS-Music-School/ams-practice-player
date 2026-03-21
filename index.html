@@ -173,15 +173,15 @@
 
         .history-card {
             background: #252525; border: 1px solid var(--border-color); border-radius: 6px;
-            padding: 8px 12px; min-width: 200px; max-width: 250px; flex-shrink: 0;
+            padding: 8px 12px; min-width: 180px; max-width: 220px; flex-shrink: 0;
             display: flex; justify-content: space-between; align-items: center; cursor: pointer;
         }
         .history-label {
-            font-size: 0.75rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-size: 0.7rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .history-del { color: #ff5555; font-size: 18px; margin-left: 10px; }
+        .history-del { color: #ff5555; font-size: 16px; margin-left: 8px; }
         #ytHistoryList::-webkit-scrollbar { height: 4px; }
-        #ytHistoryList::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
+        #ytHistoryList::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
 
         @media (max-width: 480px) {
             .transport-controls { gap: 8px; }
@@ -316,8 +316,7 @@
                 <span style="font-size:0.7rem; color:var(--primary-color); font-weight:bold;">RECENT HISTORY</span>
                 <button class="reset-btn" onclick="clearYTHistory()" style="font-size:0.6rem;">Clear All</button>
             </div>
-            <div id="ytHistoryList" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; scrollbar-width: thin;">
-            </div>
+            <div id="ytHistoryList" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px;"></div>
         </div>
 
         <div id="ytPlayerContainer"><div id="player"></div></div>
@@ -527,7 +526,8 @@
     document.head.appendChild(tag);
 
     function loadYouTube(manualUrl = null) {
-        const url = manualUrl || document.getElementById('ytUrl').value;
+        const urlInput = document.getElementById('ytUrl');
+        const url = manualUrl || urlInput.value;
         if (!url) return;
         const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
         if (videoId) {
@@ -544,15 +544,23 @@
                     } 
                 });
             }
-            document.getElementById('ytUrl').value = "";
+            urlInput.value = "";
         }
     }
 
-    function saveToHistory(id, title, url) {
+    // 履歴保存の修正版
+    function saveToHistory(id, title) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
+        // 同じIDの動画があれば削除（最新にするため）
         history = history.filter(item => item.id !== id);
-        history.unshift({ id: id, title: title || id, url: url, time: Date.now() });
-        if (history.length > 10) history.pop();
+        // 新しいものを先頭に追加
+        history.unshift({ 
+            id: id, 
+            title: title || id, 
+            url: `https://www.youtube.com/watch?v=${id}`, 
+            time: Date.now() 
+        });
+        if (history.length > 20) history.pop();
         localStorage.setItem('ams_yt_history', JSON.stringify(history));
         renderYTHistory();
     }
@@ -567,6 +575,7 @@
         history.forEach(item => {
             const card = document.createElement('div');
             card.className = 'history-card';
+            // クリック時にURLを渡して再読み込み
             card.onclick = () => loadYouTube(item.url);
             card.innerHTML = `
                 <span class="history-label">${item.title}</span>
@@ -591,16 +600,24 @@
     };
 
     function onPlayerReady(event) {
-        const videoData = ytPlayer.getVideoData();
-        const title = videoData.title;
-        const videoId = videoData.video_id;
-        const url = `https://www.youtube.com/watch?v=${videoId}`;
-        saveToHistory(videoId, title, url);
-        renderLoopList('yt');
+        updateYTInfo();
+    }
+
+    // タイトル取得と保存の連携
+    function updateYTInfo() {
+        const data = ytPlayer.getVideoData();
+        const title = data.title;
+        const id = data.video_id;
+        if (id) {
+            saveToHistory(id, title);
+            renderLoopList('yt');
+        }
     }
 
     function onPlayerStateChange(e) {
-        if (e.data == YT.PlayerState.PLAYING) {
+        // メタデータ読み込み時にもタイトル取得を試みる（確実性のため）
+        if (e.data === YT.PlayerState.PLAYING) {
+            updateYTInfo();
             loopInterval = setInterval(() => { 
                 if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) {
                     ytPlayer.seekTo(loopStart);
