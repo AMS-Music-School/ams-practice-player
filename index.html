@@ -447,14 +447,15 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
-    async function analyzeAudio(file) {
+    // ファイル解析を分離してリトライに強く
+    async function analyzeAudio(blob) {
         const lang = document.getElementById('langSelect').value;
         const statusEl = document.getElementById('loadStatus');
         statusEl.innerText = translations[lang].analyzing;
         
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
         try {
-            const arrayBuffer = await file.arrayBuffer();
+            const arrayBuffer = await blob.arrayBuffer();
             const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
             const data = audioBuffer.getChannelData(0);
             let skip = 0;
@@ -548,18 +549,10 @@
         }
     }
 
-    // 履歴保存の修正版
     function saveToHistory(id, title) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
-        // 同じIDの動画があれば削除（最新にするため）
         history = history.filter(item => item.id !== id);
-        // 新しいものを先頭に追加
-        history.unshift({ 
-            id: id, 
-            title: title || id, 
-            url: `https://www.youtube.com/watch?v=${id}`, 
-            time: Date.now() 
-        });
+        history.unshift({ id: id, title: title || id, url: `https://www.youtube.com/watch?v=${id}`, time: Date.now() });
         if (history.length > 20) history.pop();
         localStorage.setItem('ams_yt_history', JSON.stringify(history));
         renderYTHistory();
@@ -575,12 +568,8 @@
         history.forEach(item => {
             const card = document.createElement('div');
             card.className = 'history-card';
-            // クリック時にURLを渡して再読み込み
             card.onclick = () => loadYouTube(item.url);
-            card.innerHTML = `
-                <span class="history-label">${item.title}</span>
-                <span class="material-icons history-del" onclick="event.stopPropagation(); deleteHistoryItem('${item.id}')">cancel</span>
-            `;
+            card.innerHTML = `<span class="history-label">${item.title}</span><span class="material-icons history-del" onclick="event.stopPropagation(); deleteHistoryItem('${item.id}')">cancel</span>`;
             historyList.appendChild(card);
         });
     }
@@ -599,56 +588,34 @@
         }
     };
 
-    function onPlayerReady(event) {
-        updateYTInfo();
-    }
+    function onPlayerReady(event) { updateYTInfo(); }
 
-    // タイトル取得と保存の連携
     function updateYTInfo() {
         const data = ytPlayer.getVideoData();
         const title = data.title;
         const id = data.video_id;
-        if (id) {
-            saveToHistory(id, title);
-            renderLoopList('yt');
-        }
+        if (id) { saveToHistory(id, title); renderLoopList('yt'); }
     }
 
     function onPlayerStateChange(e) {
-        // メタデータ読み込み時にもタイトル取得を試みる（確実性のため）
         if (e.data === YT.PlayerState.PLAYING) {
             updateYTInfo();
             loopInterval = setInterval(() => { 
-                if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) {
-                    ytPlayer.seekTo(loopStart);
-                } 
+                if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) { ytPlayer.seekTo(loopStart); } 
             }, 200);
-        } else {
-            clearInterval(loopInterval);
-        }
+        } else { clearInterval(loopInterval); }
     }
 
     const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
     window.setLoopPoint = (t) => {
         const now = ytPlayer.getCurrentTime();
-        if (t === 'start') { 
-            loopStart = Math.floor(now); 
-            document.getElementById('loopStartTxt').innerText = fmt(loopStart); 
-        } else { 
-            loopEnd = Math.ceil(now); 
-            document.getElementById('loopEndTxt').innerText = fmt(loopEnd); 
-        }
+        if (t === 'start') { loopStart = Math.floor(now); document.getElementById('loopStartTxt').innerText = fmt(loopStart); }
+        else { loopEnd = Math.ceil(now); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
     };
 
     window.adjustTime = (t, a) => {
-        if (t === 'start') { 
-            loopStart = Math.max(0, loopStart + a); 
-            document.getElementById('loopStartTxt').innerText = fmt(loopStart); 
-            ytPlayer.seekTo(loopStart); 
-        } else { 
-            loopEnd = Math.max(loopStart + 1, loopEnd + a); 
-            document.getElementById('loopEndTxt').innerText = fmt(loopEnd); 
-        }
+        if (t === 'start') { loopStart = Math.max(0, loopStart + a); document.getElementById('loopStartTxt').innerText = fmt(loopStart); ytPlayer.seekTo(loopStart); }
+        else { loopEnd = Math.max(loopStart + 1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
     };
 
     window.toggleLoop = () => { 
@@ -693,13 +660,7 @@
         loops.forEach((loop, index) => {
             const div = document.createElement('div');
             div.className = 'loop-item';
-            div.innerHTML = `
-                <div class="loop-info" onclick="applyStoredLoop('${mode}', ${loop.start}, ${loop.end})">
-                    <span class="loop-name">${loop.name}</span>
-                    <span class="loop-times">${fmt(loop.start)} - ${fmt(loop.end)}</span>
-                </div>
-                <span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${index})">delete</span>
-            `;
+            div.innerHTML = `<div class="loop-info" onclick="applyStoredLoop('${mode}', ${loop.start}, ${loop.end})"><span class="loop-name">${loop.name}</span><span class="loop-times">${fmt(loop.start)} - ${fmt(loop.end)}</span></div><span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${index})">delete</span>`;
             container.appendChild(div);
         });
     }
@@ -735,15 +696,13 @@
         });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
-        wsRegions.on('region-created', r => { 
-            if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
-            wavesurfer.setTime(r.start); 
-        });
+        wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
 
         document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
 
-        document.getElementById('audioFile').onchange = e => { 
+        // ファイル読み込み処理の強化（Google Drive等のモバイル連携用）
+        document.getElementById('audioFile').onchange = async e => { 
             const file = e.target.files[0];
             if(file) { 
                 const lang = document.getElementById('langSelect').value;
@@ -752,12 +711,26 @@
                 document.getElementById('fileSelectBtn').innerText = currentFileName;
                 
                 wsRegions.clearRegions();
-                if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
-                currentObjectURL = URL.createObjectURL(file);
+                // メモリ解放
+                if(currentObjectURL) {
+                    URL.revokeObjectURL(currentObjectURL);
+                    currentObjectURL = null;
+                }
                 
-                wavesurfer.load(currentObjectURL);
-                analyzeAudio(file);
-                renderLoopList('file');
+                // モバイルでの安定性のためにBlobを作成し直す
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                    const blob = new Blob([event.target.result], { type: file.type });
+                    currentObjectURL = URL.createObjectURL(blob);
+                    wavesurfer.load(currentObjectURL);
+                    analyzeAudio(blob);
+                    renderLoopList('file');
+                };
+                reader.onerror = () => {
+                    alert("ファイルの読み込みに失敗しました。");
+                    document.getElementById('loadStatus').innerText = "ERROR";
+                };
+                reader.readAsArrayBuffer(file);
             } 
         };
         
@@ -766,18 +739,8 @@
             const media = wavesurfer.getMediaElement();
             if (media) {
                 media.preservesPitch = true;
-                if (media.detune !== undefined) { 
-                    media.detune = p * 100; 
-                    wavesurfer.setPlaybackRate(s); 
-                } else { 
-                    if (p !== 0) { 
-                        media.preservesPitch = false; 
-                        wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); 
-                    } else { 
-                        media.preservesPitch = true; 
-                        wavesurfer.setPlaybackRate(s); 
-                    } 
-                }
+                if (media.detune !== undefined) { media.detune = p * 100; wavesurfer.setPlaybackRate(s); }
+                else { if (p !== 0) { media.preservesPitch = false; wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); } else { media.preservesPitch = true; wavesurfer.setPlaybackRate(s); } }
             }
             updateBpmDisplay();
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
