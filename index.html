@@ -24,6 +24,7 @@
             --text-dim: #999999;
             --border-color: #333333;
             --header-height: 60px;
+            --recording-red: #ff4444;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -46,14 +47,16 @@
 
         .header-logo { color: var(--primary-color); font-weight: bold; letter-spacing: 1px; font-size: 0.9rem; }
 
-        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 10px; }
+        .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 10px; padding-bottom: 40px; }
         
-        #waveform-wrapper { 
+        #waveform-wrapper, #rec-waveform-wrapper { 
             position: relative; background: #000; border: 1px solid var(--border-color); 
             border-radius: 8px; margin-bottom: 10px; overflow: hidden;
             min-height: 120px;
         }
         
+        #rec-waveform-wrapper { min-height: 80px; margin-top: 10px; display: none; border-color: var(--recording-red); }
+
         .waveform-label { 
             font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px; 
             display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px;
@@ -64,6 +67,7 @@
         .panel { 
             background: var(--panel-bg); padding: 15px; border-radius: 12px; 
             border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px;
+            margin-bottom: 15px;
         }
 
         .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -82,6 +86,11 @@
         }
         .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); }
         .play-main { background: var(--primary-color); color: #121212 !important; width: 60px; height: 60px; border: none; }
+        
+        /* 録音ボタン専用スタイル */
+        .rec-btn { color: var(--recording-red); border-color: #442222; }
+        .rec-btn.recording { background: var(--recording-red); color: white; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
         .custom-file-upload {
             display: block; width: 100%; padding: 12px; border: 2px dashed var(--border-color); 
@@ -291,6 +300,25 @@
             </button>
         </div>
 
+        <!-- 録音パネルセクション -->
+        <div class="panel" style="border-color: var(--recording-red);">
+            <div class="row">
+                <span style="font-size:0.7rem; color:var(--recording-red); font-weight:bold; letter-spacing:1px;">SELF-RECORDING CHECK</span>
+                <button class="btn-ctrl rec-btn" id="recBtn" onclick="toggleRecording()">
+                    <span class="material-icons" id="recIcon">mic</span>
+                </button>
+            </div>
+            <div id="rec-waveform-wrapper"><div id="rec-waveform"></div></div>
+            <div class="row" id="recControls" style="display:none; justify-content:center;">
+                <button class="clear-btn-ja" onclick="playRecording()" id="playRecBtn">
+                    <span class="material-icons">play_circle</span> 録音再生
+                </button>
+                <button class="clear-btn-ja" onclick="deleteRecording()" style="color:#ff5555;">
+                    <span class="material-icons">delete</span> 削除
+                </button>
+            </div>
+        </div>
+
         <div class="panel">
             <div class="row">
                 <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Speed <button class="reset-btn" onclick="resetSetting('speed', 1.0)">Reset</button></div>
@@ -356,7 +384,8 @@
             close: "閉じる", fit: "全体表示", clear: "範囲解除", ready: "準備完了", analyzing: "解析中...",
             setStart: "開始位置", setEnd: "終了位置", loopOff: "ループ OFF", loopOn: "ループ ON",
             fileSelect: "ファイルを選択", saveLoop: "ループ保存",
-            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li><li>ループ保存: 現在の範囲を保存してリスト化できます。</li></ul>",
+            recPlay: "録音再生", recStop: "再生停止",
+            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>録音機能: 再生しながら自分の演奏を録音できます。客観的なチェックに最適です。</li><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li></ul>",
             guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>読み込み: URLを貼り付けてLOADを押します。</li><li>ループ: SET START/ENDで区間を決めます。</li><li>SAVE: YouTube動画ごとに複数のループを保存できます。</li></ul>"
         },
         en: {
@@ -364,7 +393,8 @@
             close: "Close", fit: "FIT", clear: "Clear Loop", ready: "READY", analyzing: "ANALYZING...",
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
             fileSelect: "Select Audio File", saveLoop: "Save Loop",
-            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
+            recPlay: "Play Rec", recStop: "Stop Rec",
+            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Recording: Record your play while listening to the track for self-check.</li><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li></ul>",
             guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
         }
     };
@@ -395,6 +425,11 @@
         
         const loopB = document.getElementById('toggleLoopBtn');
         loopB.innerText = isLooping ? t.loopOn : t.loopOff;
+
+        const playRecBtn = document.getElementById('playRecBtn');
+        if (playRecBtn && recWavesurfer) {
+            playRecBtn.innerHTML = recWavesurfer.isPlaying() ? `<span class="material-icons">stop_circle</span> ${t.recStop}` : `<span class="material-icons">play_circle</span> ${t.recPlay}`;
+        }
     }
 
     const userLang = (navigator.language || navigator.userLanguage).substring(0, 2);
@@ -418,13 +453,16 @@
         document.getElementById('menuOverlay').style.display = 'none';
     }
 
-    let wavesurfer, wsRegions, ytPlayer, loopInterval;
+    let wavesurfer, wsRegions, recWavesurfer, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
     let audioCtx, firstSoundTime = 0, originalBpm = 120;
     let currentObjectURL = null, currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
 
-    // どのブラウザでも共通して使用できるAudioContext初期化関数
+    // 録音関連の変数
+    let mediaRecorder, recordedChunks = [];
+    let isRecording = false;
+
     function initAudioContext() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -530,6 +568,66 @@
             await new Promise(r => setTimeout(r, interval));
         }
         overlay.style.display = 'none'; return true;
+    }
+
+    // 録音機能のロジック
+    async function toggleRecording() {
+        if (isRecording) {
+            // 録音停止
+            mediaRecorder.stop();
+            if (wavesurfer.isPlaying()) wavesurfer.pause();
+            isRecording = false;
+            document.getElementById('recBtn').classList.remove('recording');
+            document.getElementById('recIcon').innerText = 'mic';
+        } else {
+            // 録音開始
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const url = URL.createObjectURL(blob);
+                    document.getElementById('rec-waveform-wrapper').style.display = 'block';
+                    document.getElementById('recControls').style.display = 'flex';
+                    recWavesurfer.load(url);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                // 音源再生と同期
+                initAudioContext();
+                const region = wsRegions.getRegions()[0];
+                if (region) wavesurfer.setTime(region.start);
+                
+                await runCountdown();
+                
+                mediaRecorder.start();
+                wavesurfer.play();
+                isRecording = true;
+                document.getElementById('recBtn').classList.add('recording');
+                document.getElementById('recIcon').innerText = 'stop';
+            } catch (err) {
+                alert("マイクの使用が許可されていないか、エラーが発生しました。");
+            }
+        }
+    }
+
+    function playRecording() {
+        if (recWavesurfer.isPlaying()) {
+            recWavesurfer.pause();
+        } else {
+            recWavesurfer.play();
+        }
+    }
+
+    function deleteRecording() {
+        if (confirm("録音データを削除しますか？")) {
+            document.getElementById('rec-waveform-wrapper').style.display = 'none';
+            document.getElementById('recControls').style.display = 'none';
+            recWavesurfer.empty();
+        }
     }
 
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
@@ -700,6 +798,7 @@
     };
 
     function startApp() {
+        // メイン波形
         wavesurfer = WaveSurfer.create({ 
             container: '#waveform', 
             waveColor: '#333', 
@@ -708,9 +807,19 @@
             barWidth: 2, 
             normalize: true, 
             cursorColor: '#fff',
-            // Chrome対策: 明示的にmediaを指定せず、ユーザー操作で再生させる
             interact: true,
             fillParent: true
+        });
+
+        // 録音用波形
+        recWavesurfer = WaveSurfer.create({
+            container: '#rec-waveform',
+            waveColor: '#552222',
+            progressColor: '#ff4444',
+            height: 80,
+            barWidth: 2,
+            normalize: true,
+            cursorColor: '#fff'
         });
         
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
@@ -729,16 +838,12 @@
                 document.getElementById('fileSelectBtn').innerText = currentFileName;
                 
                 wsRegions.clearRegions();
-                if(currentObjectURL) {
-                    URL.revokeObjectURL(currentObjectURL);
-                }
+                if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 
                 const reader = new FileReader();
                 reader.onload = async (event) => {
                     const blob = new Blob([event.target.result], { type: file.type });
                     currentObjectURL = URL.createObjectURL(blob);
-                    
-                    // Chrome対策: ロード直後にAudioContextの状態をチェックしないよう、ロードのみ行う
                     wavesurfer.load(currentObjectURL);
                     analyzeAudio(blob);
                     renderLoopList('file');
@@ -774,24 +879,23 @@
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
         });
+
+        // 録音波形の状態監視
+        recWavesurfer.on('play', () => changeLanguage());
+        recWavesurfer.on('pause', () => changeLanguage());
+        recWavesurfer.on('finish', () => changeLanguage());
         
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
         document.getElementById('playBtn').onclick = async () => {
-            // Chrome/Safari共通: ユーザーのタップ内でContextを再開
             initAudioContext();
-            
             if (wavesurfer.isPlaying()) {
                 wavesurfer.pause();
             } else {
                 const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
                 if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
-                
-                // カウントダウン中もAudioContextが生きている必要がある
                 await runCountdown(); 
-                
-                // 再生直前に設定を再適用（ブラウザによるリセット防止）
                 applySettings();
                 wavesurfer.play();
             }
@@ -809,6 +913,8 @@
                     s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); 
                     applySettings();
                 }
+                // ループ中に録音していた場合は停止させる
+                if (isRecording) toggleRecording();
             }
         });
 
