@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player</title>
+    <title>AMS Practice Player PRO</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <link rel="icon" href="icon.png?v=1.0.6" type="image/png">
     <link rel="apple-touch-icon" href="icon.png?v=1.0.6">
@@ -26,14 +27,18 @@
             --header-height: 60px;
         }
 
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        * { 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; 
+            touch-action: manipulation; /* モバイルのダブルタップズーム抑制 */
+        }
         
         body { 
             background-color: var(--bg-dark);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             padding: 0; margin: 0; 
-            overscroll-behavior-y: contain;
+            overscroll-behavior-y: none;
             padding-top: var(--header-height);
         }
 
@@ -51,7 +56,7 @@
         #waveform-wrapper { 
             position: relative; background: #000; border: 1px solid var(--border-color); 
             border-radius: 8px; margin-bottom: 10px; overflow: hidden;
-            min-height: 120px;
+            min-height: 128px;
         }
         
         .waveform-label { 
@@ -59,7 +64,7 @@
             display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 5px;
         }
 
-        .time-display { color: var(--primary-color); font-weight: bold; font-size: 1rem; }
+        .time-display { color: var(--primary-color); font-weight: bold; font-size: 1rem; font-variant-numeric: tabular-nums; }
 
         .panel { 
             background: var(--panel-bg); padding: 15px; border-radius: 12px; 
@@ -68,49 +73,51 @@
 
         .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 
-        input[type="range"] { flex-grow: 1; accent-color: var(--primary-color); height: 6px; min-width: 50px; }
+        input[type="range"] { flex-grow: 1; accent-color: var(--primary-color); height: 25px; min-width: 50px; cursor: pointer; }
 
         .val-display { color: var(--primary-color); font-weight: bold; min-width: 70px; text-align: right; font-size: 0.95rem; }
         
         .transport-controls { 
-            display: flex; justify-content: center; align-items: center; gap: 10px; margin: 15px 0; 
+            display: flex; justify-content: center; align-items: center; gap: 12px; margin: 15px 0; 
         }
         .btn-ctrl { 
             background: var(--panel-bg); color: var(--text-dim); border: 1px solid var(--border-color); 
-            border-radius: 50%; width: 48px; height: 48px; display: flex; align-items: center; 
+            border-radius: 50%; width: 52px; height: 52px; display: flex; align-items: center; 
             justify-content: center; cursor: pointer; transition: all 0.2s;
         }
+        .btn-ctrl:active { transform: scale(0.92); background: #333; }
         .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); }
-        .play-main { background: var(--primary-color); color: #121212 !important; width: 60px; height: 60px; border: none; }
+        .play-main { background: var(--primary-color); color: #121212 !important; width: 64px; height: 64px; border: none; }
 
         .custom-file-upload {
-            display: block; width: 100%; padding: 12px; border: 2px dashed var(--border-color); 
-            border-radius: 10px; margin-bottom: 12px; background: #181818; color: #888; 
-            font-size: 0.8rem; text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            display: block; width: 100%; padding: 14px; border: 2px dashed var(--border-color); 
+            border-radius: 10px; margin-bottom: 12px; background: #181818; color: var(--primary-color); 
+            font-size: 0.9rem; text-align: center; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            font-weight: bold;
         }
         input[type="file"] { display: none; }
 
         #countdown-overlay { 
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: none; align-items: center; justify-content: center;
             font-size: 80px; color: var(--primary-color); font-weight: bold; z-index: 1000; 
-            display: none; text-shadow: 0 0 20px rgba(0,0,0,0.8); pointer-events: none;
+            background: rgba(0,0,0,0.3); pointer-events: none;
         }
 
-        .reset-btn { background: #333; border: none; color: #999; padding: 2px 6px; border-radius: 4px; font-size: 0.65rem; cursor: pointer; }
+        .reset-btn { background: #333; border: none; color: #999; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
 
         .menu-trigger { background: none; border: none; color: var(--text-main); cursor: pointer; padding: 5px; }
 
         .side-menu {
             position: fixed; top: 0; right: -280px; width: 280px; height: 100%;
-            background: var(--panel-bg); z-index: 3000; transition: right 0.3s ease;
+            background: var(--panel-bg); z-index: 3000; transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: -5px 0 15px rgba(0,0,0,0.5); padding: 20px;
         }
-
         .side-menu.open { right: 0; }
 
         .menu-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); z-index: 2500; display: none;
+            background: rgba(0,0,0,0.7); z-index: 2500; display: none; backdrop-filter: blur(3px);
         }
 
         .menu-header {
@@ -121,13 +128,13 @@
         .menu-section-title { font-size: 0.75rem; color: var(--primary-color); text-transform: uppercase; letter-spacing: 1px; margin: 15px 0 10px; display: block; }
         
         .menu-item {
-            display: flex; align-items: center; gap: 12px; color: var(--text-main); padding: 10px;
-            text-decoration: none; border-radius: 8px; margin-bottom: 5px; cursor: pointer; transition: background 0.2s; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 12px; color: var(--text-main); padding: 12px;
+            text-decoration: none; border-radius: 8px; margin-bottom: 5px; cursor: pointer; transition: background 0.2s; font-size: 0.95rem;
         }
-        .menu-item:hover { background: #333; }
+        .menu-item:active { background: #333; }
 
         .lang-select {
-            width: 100%; padding: 10px; background: #2a2a2a; color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem;
+            width: 100%; padding: 12px; background: #2a2a2a; color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem;
         }
 
         .modal {
@@ -136,67 +143,44 @@
             border-radius: 16px; z-index: 4000; padding: 20px; box-shadow: 0 0 50px rgba(0,0,0,1);
         }
 
-        .title-area { text-align: center; margin-bottom: 15px; }
-        .title-area h2 { color: var(--primary-color); font-size: 0.9rem; letter-spacing: 4px; margin: 0; font-weight: bold; text-transform: uppercase; }
-
         .mode-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 15px; background: var(--panel-bg); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); }
-        .tab-btn { background: transparent; border: none; color: var(--text-dim); padding: 8px; cursor: pointer; border-radius: 6px; font-size: 0.75rem; flex: 1; transition: all 0.3s ease; }
+        .tab-btn { background: transparent; border: none; color: var(--text-dim); padding: 10px; cursor: pointer; border-radius: 6px; font-size: 0.8rem; flex: 1; transition: all 0.3s ease; }
         .tab-btn.active { background: var(--primary-color); color: #121212; font-weight: bold; }
 
-        .content-section { display: none; }
+        .content-section { display: none; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .content-section.active { display: block; }
 
-        .clear-btn-container { margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; }
-        .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
-
-        .guide-box-inner { font-size: 0.8rem; color: var(--text-dim); line-height: 1.6; }
-        .guide-box-inner b { color: var(--primary-color); font-size: 1rem; display: block; margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-        .guide-box-inner ul { padding-left: 15px; margin: 0; }
+        .clear-btn-ja { background: #333; border: 1px solid transparent; color: var(--text-main); padding: 8px 16px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 
         #ytPlayerContainer { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; overflow: hidden; border: 1px solid var(--border-color); background: #000; }
         #ytPlayerContainer iframe { position: absolute; top: 0; left: 0; width: 100% !important; height: 100% !important; }
 
-        .loop-btn-main { background: var(--primary-color); color: #121212; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; min-width: 80px; }
-        .adj-btn { background: #333; border: 1px solid var(--border-color); color: var(--text-main); width: 40px; height: 32px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; }
-        #toggleLoopBtn { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border-color); transition: all 0.3s ease; }
-        #toggleLoopBtn.active { background: var(--primary-color); color: #121212; border: 1px solid var(--primary-color); font-weight: bold; }
+        .loop-btn-main { background: var(--primary-color); color: #121212; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; font-weight: bold; min-width: 90px; }
+        .adj-btn { background: #333; border: 1px solid var(--border-color); color: var(--text-main); width: 44px; height: 36px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
         
-        .loop-list-container { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; max-height: 200px; overflow-y: auto; }
+        .loop-list-container { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; max-height: 250px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
         .loop-item { 
-            background: #252525; padding: 8px 12px; border-radius: 8px; margin-bottom: 6px; 
-            display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;
+            background: #252525; padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; 
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;
         }
-        .loop-info { flex-grow: 1; cursor: pointer; }
-        .loop-name { color: var(--primary-color); font-weight: bold; margin-right: 10px; }
-        .loop-times { color: var(--text-dim); font-size: 0.7rem; }
-        .loop-delete { color: #ff5555; cursor: pointer; padding: 5px; }
-
         .history-card {
             background: #252525; border: 1px solid var(--border-color); border-radius: 6px;
-            padding: 8px 12px; min-width: 180px; max-width: 220px; flex-shrink: 0;
+            padding: 10px 14px; min-width: 190px; max-width: 240px; flex-shrink: 0;
             display: flex; justify-content: space-between; align-items: center; cursor: pointer;
         }
-        .history-label {
-            font-size: 0.7rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        .history-del { color: #ff5555; font-size: 16px; margin-left: 8px; }
-        #ytHistoryList::-webkit-scrollbar { height: 4px; }
-        #ytHistoryList::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
 
         @media (max-width: 480px) {
-            .transport-controls { gap: 8px; }
-            .btn-ctrl { width: 42px; height: 42px; }
-            .play-main { width: 55px; height: 55px; }
-            .val-display { min-width: 60px; font-size: 0.85rem; }
-            .time-display { font-size: 0.9rem; }
-            .adj-btn { width: 36px; }
+            .btn-ctrl { width: 48px; height: 48px; }
+            .play-main { width: 60px; height: 60px; }
+            .adj-btn { width: 40px; }
         }
     </style>
 </head>
 <body>
 
 <header>
-    <div class="header-logo">AMS PLAYER</div>
+    <div class="header-logo">AMS PLAYER PRO</div>
     <button class="menu-trigger" onclick="toggleMenu(true)">
         <span class="material-icons">menu</span>
     </button>
@@ -210,54 +194,37 @@
             <span class="material-icons">close</span>
         </button>
     </div>
-
     <span class="menu-section-title" id="langTitle">Language Settings</span>
     <select id="langSelect" class="lang-select" onchange="changeLanguage()">
         <option value="ja">日本語</option>
         <option value="en">English</option>
-        <option value="zh">中文</option>
-        <option value="es">Español</option>
-        <option value="ko">한국어</option>
     </select>
-
     <span class="menu-section-title" id="helpTitle">Help & Guide</span>
-    <div class="menu-item" onclick="showGuide('file')">
-        <span class="material-icons">description</span>
-        <span id="guideFileTitle">Audio File Mode Guide</span>
-    </div>
-    <div class="menu-item" onclick="showGuide('yt')">
-        <span class="material-icons">smart_display</span>
-        <span id="guideYTTitle">YouTube Mode Guide</span>
-    </div>
+    <div class="menu-item" onclick="showGuide('file')"><span class="material-icons">description</span><span id="guideFileTitle">Audio File Mode Guide</span></div>
+    <div class="menu-item" onclick="showGuide('yt')"><span class="material-icons">smart_display</span><span id="guideYTTitle">YouTube Mode Guide</span></div>
 </div>
 
-<div id="guideModalFile" class="modal">
-    <div class="guide-box-inner" id="guideFileContent"></div>
-    <button class="clear-btn-ja" id="closeBtn1" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
-</div>
-
-<div id="guideModalYT" class="modal">
-    <div class="guide-box-inner" id="guideYTContent"></div>
-    <button class="clear-btn-ja" id="closeBtn2" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
-</div>
+<!-- Guides -->
+<div id="guideModalFile" class="modal"><div class="guide-box-inner" id="guideFileContent"></div><button class="clear-btn-ja" id="closeBtn1" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button></div>
+<div id="guideModalYT" class="modal"><div class="guide-box-inner" id="guideYTContent"></div><button class="clear-btn-ja" id="closeBtn2" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button></div>
 
 <div class="container">
-    <div class="title-area"><h2>AMS Practice Player</h2></div>
-
     <div class="mode-tabs">
         <button class="tab-btn active" id="tab-file" onclick="switchMode('file')">Audio File Mode</button>
         <button class="tab-btn" id="tab-yt" onclick="switchMode('yt')">YouTube Mode</button>
     </div>
 
+    <!-- Audio File Section -->
     <div id="file-section" class="content-section active">
-        <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">ファイルを選択</label>
-        <input type="file" id="audioFile" accept="audio/*, .mp3, .wav, .m4a, .aac, .mp4, .ogg, .flac, .webma">
+        <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">
+            <span class="material-icons" style="vertical-align:middle; font-size:1.2rem;">file_upload</span> ファイルを選択
+        </label>
+        <input type="file" id="audioFile" accept="audio/*">
 
         <div class="waveform-label">
-            <span id="loadStatus">READY</span>
+            <span id="loadStatus" style="font-weight:bold;">READY</span>
             <div style="display:flex; align-items:center; gap:8px;">
-                <span class="material-icons" style="font-size:18px;">zoom_in</span>
-                <input type="range" id="zoomSlider" min="0" max="500" value="100" style="width:80px;">
+                <input type="range" id="zoomSlider" min="0" max="500" value="0" style="width:70px;">
                 <button class="reset-btn" id="resetZoomBtn">FIT</button>
             </div>
             <span class="time-display"><span id="currentTime">00:00</span> / <span id="totalTime">00:00</span></span>
@@ -268,81 +235,72 @@
             <div id="waveform"></div>
         </div>
 
-        <div class="clear-btn-container">
-            <button class="clear-btn-ja" onclick="wsRegions.clearRegions()" id="clearRangeBtn">
-                <span class="material-icons" style="font-size:16px;">layers_clear</span> 範囲解除
-            </button>
-            <button class="clear-btn-ja" onclick="saveLoop('file')" id="saveLoopBtn" style="border: 1px solid var(--primary-color);">
-                <span class="material-icons" style="font-size:16px;">bookmark_add</span> ループ保存
-            </button>
+        <div class="clear-btn-container" style="display:flex; justify-content:center; gap:10px; margin-bottom:10px;">
+            <button class="clear-btn-ja" onclick="wsRegions.clearRegions()" id="clearRangeBtn"><span class="material-icons" style="font-size:16px;">layers_clear</span> 範囲解除</button>
+            <button class="clear-btn-ja" onclick="saveLoop('file')" id="saveLoopBtn" style="border: 1px solid var(--primary-color);"><span class="material-icons" style="font-size:16px;">bookmark_add</span> 保存</button>
         </div>
 
         <div id="loopListFile" class="loop-list-container"></div>
         
         <div class="transport-controls">
-            <button class="btn-ctrl active" id="countToggleBtn" onclick="toggleFeature('count')">
-                <span class="material-icons">timer</span>
-            </button>
-            <button class="btn-ctrl" onclick="wavesurfer.skip(-5)"><span class="material-icons">replay_5</span></button>
-            <button class="btn-ctrl play-main" id="playBtn"><span class="material-icons" id="playIcon" style="font-size:35px;">play_arrow</span></button>
-            <button class="btn-ctrl" onclick="wavesurfer.skip(5)"><span class="material-icons">forward_5</span></button>
-            <button class="btn-ctrl" id="speedUpToggleBtn" onclick="toggleFeature('speedup')">
-                <span class="material-icons">speed</span>
-            </button>
+            <button class="btn-ctrl active" id="countToggleBtn" onclick="toggleFeature('count')"><span class="material-icons">timer</span></button>
+            <button class="btn-ctrl" onclick="skipWS(-5)"><span class="material-icons">replay_5</span></button>
+            <button class="btn-ctrl play-main" id="playBtn"><span class="material-icons" id="playIcon" style="font-size:38px;">play_arrow</span></button>
+            <button class="btn-ctrl" onclick="skipWS(5)"><span class="material-icons">forward_5</span></button>
+            <button class="btn-ctrl" id="speedUpToggleBtn" onclick="toggleFeature('speedup')"><span class="material-icons">speed</span></button>
         </div>
 
         <div class="panel">
             <div class="row">
-                <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Speed <button class="reset-btn" onclick="resetSetting('speed', 1.0)">Reset</button></div>
+                <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Speed <button class="reset-btn" onclick="resetSetting('speed', 1.0)">1.0</button></div>
                 <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="1.0">
                 <span id="spTxt" class="val-display">BPM 120</span>
             </div>
             <div class="row">
-                <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Pitch <button class="reset-btn" onclick="resetSetting('pitch', 0)">Reset</button></div>
+                <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Pitch <button class="reset-btn" onclick="resetSetting('pitch', 0)">0</button></div>
                 <input type="range" id="pitch" min="-6" max="6" step="1" value="0">
                 <span id="pitchTxt" class="val-display">±0</span>
             </div>
         </div>
     </div>
 
+    <!-- YouTube Section -->
     <div id="yt-section" class="content-section">
-        <div style="display:flex; gap:8px; margin-bottom:10px; background:var(--panel-bg); padding:10px; border-radius:10px; border: 1px solid var(--border-color);">
-            <input type="text" id="ytUrl" placeholder="YouTube URL..." style="flex-grow:1; padding:10px; border:1px solid var(--border-color); background:#000; color:#fff; border-radius:6px; font-size:0.8rem;">
-            <button class="tab-btn active" style="flex:0; min-width:60px;" onclick="loadYouTube()">LOAD</button>
+        <div style="display:flex; gap:8px; margin-bottom:12px; background:var(--panel-bg); padding:10px; border-radius:10px; border: 1px solid var(--border-color);">
+            <input type="text" id="ytUrl" placeholder="YouTube URL..." style="flex-grow:1; padding:12px; border:1px solid var(--border-color); background:#000; color:#fff; border-radius:8px; font-size:0.9rem;">
+            <button class="tab-btn active" style="flex:0; min-width:70px;" onclick="loadYouTube()">LOAD</button>
         </div>
 
         <div id="ytHistoryContainer" style="margin-bottom: 15px; display: none;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                <span style="font-size:0.7rem; color:var(--primary-color); font-weight:bold;">RECENT HISTORY</span>
-                <button class="reset-btn" onclick="clearYTHistory()" style="font-size:0.6rem;">Clear All</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <span style="font-size:0.7rem; color:var(--primary-color); font-weight:bold; letter-spacing:1px;">RECENT HISTORY</span>
+                <button class="reset-btn" onclick="clearYTHistory()" style="font-size:0.6rem;">CLEAR ALL</button>
             </div>
-            <div id="ytHistoryList" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px;"></div>
+            <div id="ytHistoryList" style="display:flex; gap:10px; overflow-x:auto; padding-bottom:10px;"></div>
         </div>
 
         <div id="ytPlayerContainer"><div id="player"></div></div>
         
         <div class="panel" style="margin-top:15px;">
             <div class="row" style="justify-content: center; flex-wrap: wrap; gap: 10px;">
-                <button class="loop-btn-main" id="setStartBtn" onclick="setLoopPoint('start')">SET START</button>
-                <div style="background:#000; padding:5px; border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; gap:5px;">
+                <button class="loop-btn-main" onclick="setLoopPoint('start')">SET START</button>
+                <div style="background:#000; padding:6px; border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; gap:8px;">
                     <button class="adj-btn" onclick="adjustTime('start', -1)">-1s</button>
-                    <span id="loopStartTxt" class="time-display">00:00</span>
+                    <span id="loopStartTxt" class="time-display" style="min-width:50px; text-align:center;">00:00</span>
                     <button class="adj-btn" onclick="adjustTime('start', 1)">+1s</button>
                 </div>
             </div>
             <div class="row" style="justify-content: center; flex-wrap: wrap; gap: 10px;">
-                <button class="loop-btn-main" id="setEndBtn" onclick="setLoopPoint('end')">SET END</button>
-                <div style="background:#000; padding:5px; border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; gap:5px;">
+                <button class="loop-btn-main" onclick="setLoopPoint('end')">SET END</button>
+                <div style="background:#000; padding:6px; border-radius:8px; border:1px solid var(--border-color); display:flex; align-items:center; gap:8px;">
                     <button class="adj-btn" onclick="adjustTime('end', -1)">-1s</button>
-                    <span id="loopEndTxt" class="time-display">00:00</span>
+                    <span id="loopEndTxt" class="time-display" style="min-width:50px; text-align:center;">00:00</span>
                     <button class="adj-btn" onclick="adjustTime('end', 1)">+1s</button>
                 </div>
             </div>
-            <div class="row" style="justify-content: center; gap: 10px;">
-                <button id="toggleLoopBtn" class="tab-btn" style="width:140px;" onclick="toggleLoop()">LOOP OFF</button>
-                <button class="clear-btn-ja" onclick="saveLoop('yt')" id="saveLoopBtnYT" style="border: 1px solid var(--primary-color); border-radius: 6px; padding: 8px 12px;">
-                    <span class="material-icons" style="font-size:16px;">bookmark_add</span> SAVE
-                </button>
+            <div class="row" style="justify-content: center; gap: 12px;">
+                <button id="toggleLoopBtn" class="tab-btn" style="width:140px; border:1px solid var(--border-color);" onclick="toggleLoop()">LOOP OFF</button>
+                <button class="clear-btn-ja" onclick="saveLoop('yt')" style="border: 1px solid var(--primary-color);"><span class="material-icons" style="font-size:18px;">bookmark_add</span> SAVE</button>
             </div>
         </div>
         <div id="loopListYT" class="loop-list-container"></div>
@@ -356,67 +314,18 @@
             close: "閉じる", fit: "全体表示", clear: "範囲解除", ready: "準備完了", analyzing: "解析中...",
             setStart: "開始位置", setEnd: "終了位置", loopOff: "ループ OFF", loopOn: "ループ ON",
             fileSelect: "ファイルを選択", saveLoop: "ループ保存",
-            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li><li>ループ保存: 現在の範囲を保存してリスト化できます。</li></ul>",
-            guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>読み込み: URLを貼り付けてLOADを押します。</li><li>ループ: SET START/ENDで区間を決めます。</li><li>SAVE: YouTube動画ごとに複数のループを保存できます。</li></ul>"
+            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>モバイル対応: 読み込みが止まった場合は再度選択してください。</li><li>スピード: 再生速度を変更しても音程は維持されます。</li><li>ループ: 波形をなぞって範囲指定、保存でリスト化できます。</li></ul>",
+            guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>履歴: 一度見た動画は履歴からすぐ呼び出せます。</li><li>区間指定: 秒単位の微調整ボタンを活用してください。</li></ul>"
         },
         en: {
             langTitle: "Language Settings", helpTitle: "Help & Guide", guideFile: "Audio File Mode Guide", guideYT: "YouTube Mode Guide",
             close: "Close", fit: "FIT", clear: "Clear Loop", ready: "READY", analyzing: "ANALYZING...",
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
-            fileSelect: "Select Audio File", saveLoop: "Save Loop",
-            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
-            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
+            fileSelect: "Select File", saveLoop: "Save",
+            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Mobile: If loading fails, re-select the file.</li><li>Speed: Change speed without affecting pitch.</li><li>Loop: Drag on waveform to set range and save.</li></ul>",
+            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>History: Recently played videos appear below the input.</li><li>Adjustment: Use +/- 1s buttons for precise looping.</li></ul>"
         }
     };
-
-    function changeLanguage() {
-        const lang = document.getElementById('langSelect').value || 'ja';
-        const t = translations[lang] || translations['ja'];
-        document.getElementById('langTitle').innerText = t.langTitle;
-        document.getElementById('helpTitle').innerText = t.helpTitle;
-        document.getElementById('guideFileTitle').innerText = t.guideFile;
-        document.getElementById('guideYTTitle').innerText = t.guideYT;
-        document.getElementById('closeBtn1').innerText = t.close;
-        document.getElementById('closeBtn2').innerText = t.close;
-        document.getElementById('resetZoomBtn').innerText = t.fit;
-        document.getElementById('clearRangeBtn').innerHTML = `<span class="material-icons" style="font-size:16px;">layers_clear</span> ${t.clear}`;
-        document.getElementById('saveLoopBtn').innerHTML = `<span class="material-icons" style="font-size:16px;">bookmark_add</span> ${t.saveLoop}`;
-        document.getElementById('setStartBtn').innerText = t.setStart;
-        document.getElementById('setEndBtn').innerText = t.setEnd;
-        document.getElementById('guideFileContent').innerHTML = t.guideFileContent;
-        document.getElementById('guideYTContent').innerHTML = t.guideYTContent;
-        
-        const fileInput = document.getElementById('audioFile');
-        const fileLabel = document.getElementById('fileSelectBtn');
-        if (!fileInput.files.length) fileLabel.innerText = t.fileSelect;
-
-        const loadS = document.getElementById('loadStatus');
-        if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備")) loadS.innerText = t.ready;
-        
-        const loopB = document.getElementById('toggleLoopBtn');
-        loopB.innerText = isLooping ? t.loopOn : t.loopOff;
-    }
-
-    const userLang = (navigator.language || navigator.userLanguage).substring(0, 2);
-    document.getElementById('langSelect').value = translations[userLang] ? userLang : 'ja';
-
-    function toggleMenu(isOpen) {
-        document.getElementById('sideMenu').classList.toggle('open', isOpen);
-        document.getElementById('menuOverlay').style.display = isOpen ? 'block' : 'none';
-    }
-
-    function showGuide(type) {
-        toggleMenu(false); closeModals();
-        if (type === 'file') document.getElementById('guideModalFile').style.display = 'block';
-        if (type === 'yt') document.getElementById('guideModalYT').style.display = 'block';
-        document.getElementById('menuOverlay').style.display = 'block';
-    }
-
-    function closeModals() {
-        document.getElementById('guideModalFile').style.display = 'none';
-        document.getElementById('guideModalYT').style.display = 'none';
-        document.getElementById('menuOverlay').style.display = 'none';
-    }
 
     let wavesurfer, wsRegions, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
@@ -424,14 +333,21 @@
     let currentObjectURL = null, currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
 
-    function toggleFeature(type) {
-        if (type === 'count') {
-            isCountEnabled = !isCountEnabled;
-            document.getElementById('countToggleBtn').classList.toggle('active', isCountEnabled);
-        } else if (type === 'speedup') {
-            isSpeedUpEnabled = !isSpeedUpEnabled;
-            document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled);
-        }
+    function toggleMenu(isOpen) {
+        document.getElementById('sideMenu').classList.toggle('open', isOpen);
+        document.getElementById('menuOverlay').style.display = isOpen ? 'block' : 'none';
+    }
+
+    function showGuide(type) {
+        toggleMenu(false);
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        document.getElementById(type === 'file' ? 'guideModalFile' : 'guideModalYT').style.display = 'block';
+        document.getElementById('menuOverlay').style.display = 'block';
+    }
+
+    function closeModals() {
+        document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+        document.getElementById('menuOverlay').style.display = 'none';
     }
 
     function switchMode(mode) {
@@ -443,57 +359,61 @@
         if(mode === 'yt') {
             if(wavesurfer) wavesurfer.pause();
             renderYTHistory();
+        } else {
+            if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
         }
-        if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
+    // --- Audio File Logics ---
     async function analyzeAudio(file) {
-        const lang = document.getElementById('langSelect').value;
         const statusEl = document.getElementById('loadStatus');
+        const lang = document.getElementById('langSelect').value;
         statusEl.innerText = translations[lang].analyzing;
-        
-        const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // モバイルでのメモリ対策：古いURLを解放
+        if (currentObjectURL) URL.revokeObjectURL(currentObjectURL);
+        currentObjectURL = URL.createObjectURL(file);
+
         try {
+            const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
             const arrayBuffer = await file.arrayBuffer();
             const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
+            
+            // 無音カット位置の検出
             const data = audioBuffer.getChannelData(0);
+            const threshold = 0.01;
             let skip = 0;
-            const threshold = 0.015;
-            for (let i = 0; i < data.length; i += 100) { 
-                if (Math.abs(data[i]) > threshold) { skip = i / audioBuffer.sampleRate; break; } 
+            for (let i = 0; i < data.length; i += 200) {
+                if (Math.abs(data[i]) > threshold) { skip = i / audioBuffer.sampleRate; break; }
             }
             firstSoundTime = skip;
+            
+            // BPM検出 (簡易版)
             const bpm = detectBPM(audioBuffer);
             if (bpm > 0) { originalBpm = Math.round(bpm); updateBpmDisplay(); }
-            statusEl.innerText = translations[lang].ready;
-            if(wavesurfer && wavesurfer.isReady) wavesurfer.setTime(firstSoundTime);
+            
+            wavesurfer.load(currentObjectURL);
+            tempCtx.close();
         } catch (e) {
-            console.error("Audio Analysis Error:", e);
-            statusEl.innerText = translations[lang].ready;
-        } finally { 
-            tempCtx.close(); 
+            console.error("Decode error", e);
+            wavesurfer.load(currentObjectURL);
+            statusEl.innerText = "LOAD ERROR";
         }
-    }
-
-    function updateBpmDisplay() {
-        const currentSpeed = parseFloat(document.getElementById('speed').value);
-        const currentBpm = Math.round(originalBpm * currentSpeed);
-        document.getElementById('spTxt').innerText = "BPM " + currentBpm;
     }
 
     function detectBPM(buffer) {
-        const data = buffer.getChannelData(0), sampleRate = buffer.sampleRate, step = 200, energy = [];
-        for (let i = 0; i < data.length; i += step) {
+        const data = buffer.getChannelData(0), step = 250, energy = [];
+        for (let i = 0; i < Math.min(data.length, buffer.sampleRate * 60); i += step) {
             let sum = 0;
             for(let j=0; j<step && (i+j)<data.length; j++) sum += data[i+j] * data[i+j];
             energy.push(Math.sqrt(sum/step));
         }
-        let bestBpm = 0, maxCorrelation = 0;
-        const minInterval = Math.floor((60 / 200) * (sampleRate / step)), maxInterval = Math.floor((60 / 60) * (sampleRate / step));
-        for (let interval = minInterval; interval <= maxInterval; interval++) {
-            let correlation = 0;
-            for (let i = 0; i < Math.min(energy.length - interval, 10000); i++) correlation += energy[i] * energy[i + interval];
-            if (correlation > maxCorrelation) { maxCorrelation = correlation; bestBpm = 60 / (interval * step / sampleRate); }
+        let bestBpm = 0, maxCorr = 0;
+        const minI = Math.floor((60/200)*(buffer.sampleRate/step)), maxI = Math.floor((60/60)*(buffer.sampleRate/step));
+        for (let interval = minI; interval <= maxI; interval++) {
+            let corr = 0;
+            for (let i = 0; i < Math.min(energy.length - interval, 5000); i++) corr += energy[i] * energy[i+interval];
+            if (corr > maxCorr) { maxCorr = corr; bestBpm = 60 / (interval * step / buffer.sampleRate); }
         }
         return (bestBpm < 50 || bestBpm > 250) ? 0 : bestBpm;
     }
@@ -501,332 +421,260 @@
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-        osc.frequency.setValueAtTime(isLast ? 880 : 440, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
-        osc.connect(gain); gain.connect(audioCtx.destination);
+        const osc = audioCtx.createOscillator(), g = audioCtx.createGain();
+        osc.frequency.value = isLast ? 880 : 440;
+        g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+        osc.connect(g); g.connect(audioCtx.destination);
         osc.start(); osc.stop(audioCtx.currentTime + 0.1);
     }
 
     async function runCountdown() {
-        if (!isCountEnabled) return true;
-        const currentSpeed = parseFloat(document.getElementById('speed').value);
-        const interval = 60000 / (originalBpm * currentSpeed);
+        if (!isCountEnabled) return;
+        const interval = 60000 / (originalBpm * parseFloat(document.getElementById('speed').value));
         const overlay = document.getElementById('countdown-overlay');
-        overlay.style.display = 'block';
+        overlay.style.display = 'flex';
         for (let i = 1; i <= 4; i++) {
-            overlay.innerText = i; playBeep(i === 4);
+            overlay.innerText = i;
+            playBeep(i === 4);
             await new Promise(r => setTimeout(r, interval));
         }
-        overlay.style.display = 'none'; return true;
+        overlay.style.display = 'none';
     }
 
+    // --- YouTube Logics ---
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
+    function onYouTubeIframeAPIReady() {}
+
     function loadYouTube(manualUrl = null) {
-        const urlInput = document.getElementById('ytUrl');
-        const url = manualUrl || urlInput.value;
+        const url = manualUrl || document.getElementById('ytUrl').value;
         if (!url) return;
-        const videoId = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
-        if (videoId) {
-            currentYTId = videoId;
-            document.getElementById('loopListYT').innerHTML = ""; 
+        const vid = url.includes('v=') ? url.split('v=')[1].split('&')[0] : url.includes('be/') ? url.split('be/')[1].split('?')[0] : null;
+        if (vid) {
+            currentYTId = vid;
             if (ytPlayer && ytPlayer.loadVideoById) {
-                ytPlayer.loadVideoById(videoId);
+                ytPlayer.loadVideoById(vid);
             } else {
-                ytPlayer = new YT.Player('player', { 
-                    videoId: videoId, 
-                    events: { 
-                        'onReady': onPlayerReady, 
-                        'onStateChange': onPlayerStateChange 
-                    } 
-                });
+                ytPlayer = new YT.Player('player', { videoId: vid, events: { 'onStateChange': onYTStateChange, 'onReady': (e) => saveToHistory(vid, e.target.getVideoData().title) } });
             }
-            urlInput.value = "";
+            document.getElementById('ytUrl').value = "";
         }
     }
 
-    // 履歴保存の修正版
     function saveToHistory(id, title) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
-        // 同じIDの動画があれば削除（最新にするため）
-        history = history.filter(item => item.id !== id);
-        // 新しいものを先頭に追加
-        history.unshift({ 
-            id: id, 
-            title: title || id, 
-            url: `https://www.youtube.com/watch?v=${id}`, 
-            time: Date.now() 
-        });
+        history = history.filter(h => h.id !== id);
+        history.unshift({ id, title: title || id, url: "https://www.youtube.com/watch?v="+id });
         if (history.length > 20) history.pop();
         localStorage.setItem('ams_yt_history', JSON.stringify(history));
         renderYTHistory();
+        renderLoopList('yt');
     }
 
     function renderYTHistory() {
-        const historyList = document.getElementById('ytHistoryList');
-        const container = document.getElementById('ytHistoryContainer');
+        const list = document.getElementById('ytHistoryList');
         const history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
-        if (history.length === 0) { container.style.display = 'none'; return; }
-        container.style.display = 'block';
-        historyList.innerHTML = "";
-        history.forEach(item => {
+        document.getElementById('ytHistoryContainer').style.display = history.length ? 'block' : 'none';
+        list.innerHTML = "";
+        history.forEach(h => {
             const card = document.createElement('div');
             card.className = 'history-card';
-            // クリック時にURLを渡して再読み込み
-            card.onclick = () => loadYouTube(item.url);
-            card.innerHTML = `
-                <span class="history-label">${item.title}</span>
-                <span class="material-icons history-del" onclick="event.stopPropagation(); deleteHistoryItem('${item.id}')">cancel</span>
-            `;
-            historyList.appendChild(card);
+            card.onclick = () => loadYouTube(h.url);
+            card.innerHTML = `<span style="font-size:0.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${h.title}</span><span class="material-icons" style="color:#ff5555; font-size:18px;" onclick="event.stopPropagation(); deleteHistoryItem('${h.id}')">cancel</span>`;
+            list.appendChild(card);
         });
     }
 
     window.deleteHistoryItem = (id) => {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
-        history = history.filter(item => item.id !== id);
-        localStorage.setItem('ams_yt_history', JSON.stringify(history));
+        localStorage.setItem('ams_yt_history', JSON.stringify(history.filter(h => h.id !== id)));
         renderYTHistory();
     };
 
-    window.clearYTHistory = () => {
-        if (confirm("履歴をすべて削除しますか？")) {
-            localStorage.removeItem('ams_yt_history');
-            renderYTHistory();
-        }
-    };
-
-    function onPlayerReady(event) {
-        updateYTInfo();
-    }
-
-    // タイトル取得と保存の連携
-    function updateYTInfo() {
-        const data = ytPlayer.getVideoData();
-        const title = data.title;
-        const id = data.video_id;
-        if (id) {
-            saveToHistory(id, title);
-            renderLoopList('yt');
-        }
-    }
-
-    function onPlayerStateChange(e) {
-        // メタデータ読み込み時にもタイトル取得を試みる（確実性のため）
+    function onYTStateChange(e) {
         if (e.data === YT.PlayerState.PLAYING) {
-            updateYTInfo();
-            loopInterval = setInterval(() => { 
-                if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) {
-                    ytPlayer.seekTo(loopStart);
-                } 
-            }, 200);
-        } else {
+            const data = ytPlayer.getVideoData();
+            if(data.title) saveToHistory(data.video_id, data.title);
             clearInterval(loopInterval);
-        }
+            loopInterval = setInterval(() => {
+                if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) ytPlayer.seekTo(loopStart);
+            }, 200);
+        } else { clearInterval(loopInterval); }
     }
 
+    // --- UI Helpers ---
     const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
-    window.setLoopPoint = (t) => {
+
+    function setLoopPoint(type) {
         const now = ytPlayer.getCurrentTime();
-        if (t === 'start') { 
-            loopStart = Math.floor(now); 
-            document.getElementById('loopStartTxt').innerText = fmt(loopStart); 
-        } else { 
-            loopEnd = Math.ceil(now); 
-            document.getElementById('loopEndTxt').innerText = fmt(loopEnd); 
-        }
-    };
+        if (type === 'start') { loopStart = Math.floor(now); document.getElementById('loopStartTxt').innerText = fmt(loopStart); }
+        else { loopEnd = Math.ceil(now); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
+    }
 
-    window.adjustTime = (t, a) => {
-        if (t === 'start') { 
-            loopStart = Math.max(0, loopStart + a); 
-            document.getElementById('loopStartTxt').innerText = fmt(loopStart); 
-            ytPlayer.seekTo(loopStart); 
-        } else { 
-            loopEnd = Math.max(loopStart + 1, loopEnd + a); 
-            document.getElementById('loopEndTxt').innerText = fmt(loopEnd); 
-        }
-    };
+    function adjustTime(type, amt) {
+        if (type === 'start') { loopStart = Math.max(0, loopStart + amt); document.getElementById('loopStartTxt').innerText = fmt(loopStart); ytPlayer.seekTo(loopStart); }
+        else { loopEnd = Math.max(loopStart + 1, loopEnd + amt); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
+    }
 
-    window.toggleLoop = () => { 
-        isLooping = !isLooping; 
+    function toggleLoop() {
+        isLooping = !isLooping;
+        const b = document.getElementById('toggleLoopBtn');
         const lang = document.getElementById('langSelect').value;
-        const b = document.getElementById('toggleLoopBtn'); 
-        b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff; 
-        b.classList.toggle('active', isLooping); 
-    };
+        b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff;
+        b.classList.toggle('active', isLooping);
+    }
+
+    function skipWS(val) { wavesurfer.skip(val); }
 
     function saveLoop(mode) {
-        let start, end, key;
+        const key = mode === 'file' ? currentFileName : currentYTId;
+        if (!key) return;
+        let start, end;
         if (mode === 'file') {
-            const regions = wsRegions.getRegions();
-            if (regions.length === 0) return alert("ループ範囲を指定してください。");
-            start = regions[0].start; end = regions[0].end; key = currentFileName;
-        } else {
-            if (!currentYTId) return;
-            start = loopStart; end = loopEnd; key = currentYTId;
-            if (start >= end) return alert("開始位置は終了位置より前に設定してください。");
-        }
-        const defaultName = `Loop ${fmt(start)}-${fmt(end)}`;
-        const name = prompt("ループの名前を入力してください", defaultName);
+            const r = wsRegions.getRegions()[0]; if(!r) return;
+            start = r.start; end = r.end;
+        } else { start = loopStart; end = loopEnd; }
+        
+        const name = prompt("Loop Name:", `Loop ${fmt(start)}-${fmt(end)}`);
         if (!name) return;
-        const loopData = { name, start, end };
-        let storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
-        let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
-        if (!allLoops[key]) allLoops[key] = [];
-        allLoops[key].push(loopData);
-        localStorage.setItem(storageKey, JSON.stringify(allLoops));
+        const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        let all = JSON.parse(localStorage.getItem(storageKey) || "{}");
+        if (!all[key]) all[key] = [];
+        all[key].push({ name, start, end });
+        localStorage.setItem(storageKey, JSON.stringify(all));
         renderLoopList(mode);
     }
 
     function renderLoopList(mode) {
-        const container = mode === 'file' ? document.getElementById('loopListFile') : document.getElementById('loopListYT');
         const key = mode === 'file' ? currentFileName : currentYTId;
-        const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        const container = document.getElementById(mode === 'file' ? 'loopListFile' : 'loopListYT');
         container.innerHTML = "";
         if (!key) return;
-        let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
-        const loops = allLoops[key] || [];
-        loops.forEach((loop, index) => {
+        const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        const loops = JSON.parse(localStorage.getItem(storageKey) || "{}")[key] || [];
+        loops.forEach((l, i) => {
             const div = document.createElement('div');
             div.className = 'loop-item';
-            div.innerHTML = `
-                <div class="loop-info" onclick="applyStoredLoop('${mode}', ${loop.start}, ${loop.end})">
-                    <span class="loop-name">${loop.name}</span>
-                    <span class="loop-times">${fmt(loop.start)} - ${fmt(loop.end)}</span>
-                </div>
-                <span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${index})">delete</span>
-            `;
+            div.innerHTML = `<div style="flex-grow:1" onclick="applyStoredLoop('${mode}', ${l.start}, ${l.end})"><b>${l.name}</b> <small>${fmt(l.start)}-${fmt(l.end)}</small></div><span class="material-icons" style="color:#ff5555; cursor:pointer" onclick="deleteLoop('${mode}', ${i})">delete</span>`;
             container.appendChild(div);
         });
     }
 
-    window.applyStoredLoop = (mode, start, end) => {
+    window.applyStoredLoop = (mode, s, e) => {
         if (mode === 'file') {
             wsRegions.clearRegions();
-            wsRegions.addRegion({ start, end, color: 'rgba(212, 163, 115, 0.2)' });
-            wavesurfer.setTime(start);
+            wsRegions.addRegion({ start: s, end: e, color: 'rgba(212, 163, 115, 0.2)' });
+            wavesurfer.setTime(s);
         } else {
-            loopStart = start; loopEnd = end;
-            document.getElementById('loopStartTxt').innerText = fmt(start);
-            document.getElementById('loopEndTxt').innerText = fmt(end);
-            ytPlayer.seekTo(start);
-            if (!isLooping) toggleLoop();
+            loopStart = s; loopEnd = e;
+            document.getElementById('loopStartTxt').innerText = fmt(s);
+            document.getElementById('loopEndTxt').innerText = fmt(e);
+            ytPlayer.seekTo(s);
+            if(!isLooping) toggleLoop();
         }
     };
 
-    window.deleteLoop = (mode, index) => {
-        const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+    window.deleteLoop = (mode, idx) => {
         const key = mode === 'file' ? currentFileName : currentYTId;
-        let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
-        if (allLoops[key]) {
-            allLoops[key].splice(index, 1);
-            localStorage.setItem(storageKey, JSON.stringify(allLoops));
-            renderLoopList(mode);
-        }
+        const skey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        let all = JSON.parse(localStorage.getItem(skey) || "{}");
+        all[key].splice(idx, 1);
+        localStorage.setItem(skey, JSON.stringify(all));
+        renderLoopList(mode);
     };
+
+    function toggleFeature(type) {
+        if (type === 'count') { isCountEnabled = !isCountEnabled; document.getElementById('countToggleBtn').classList.toggle('active', isCountEnabled); }
+        else { isSpeedUpEnabled = !isSpeedUpEnabled; document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled); }
+    }
+
+    function changeLanguage() {
+        const lang = document.getElementById('langSelect').value;
+        const t = translations[lang];
+        document.getElementById('langTitle').innerText = t.langTitle;
+        document.getElementById('helpTitle').innerText = t.helpTitle;
+        document.getElementById('guideFileTitle').innerText = t.guideFile;
+        document.getElementById('guideYTTitle').innerText = t.guideYT;
+        document.getElementById('guideFileContent').innerHTML = t.guideFileContent;
+        document.getElementById('guideYTContent').innerHTML = t.guideYTContent;
+        document.getElementById('loadStatus').innerText = t.ready;
+        document.getElementById('fileSelectBtn').innerHTML = `<span class="material-icons" style="vertical-align:middle; font-size:1.2rem;">file_upload</span> ${t.fileSelect}`;
+    }
 
     function startApp() {
         wavesurfer = WaveSurfer.create({ 
-            container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff'
+            container: '#waveform', waveColor: '#444', progressColor: '#d4a373', height: 128, barWidth: 2, normalize: true, cursorColor: '#fff', 
+            backend: 'WebAudio' // モバイルでの互換性のために明示
         });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
-        wsRegions.on('region-created', r => { 
-            if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
-            wavesurfer.setTime(r.start); 
-        });
+        
+        wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
 
-        document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
-        document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
-
-        document.getElementById('audioFile').onchange = e => { 
-            const file = e.target.files[0];
-            if(file) { 
-                const lang = document.getElementById('langSelect').value;
-                document.getElementById('loadStatus').innerText = translations[lang].analyzing;
-                currentFileName = file.name;
-                document.getElementById('fileSelectBtn').innerText = currentFileName;
-                
-                wsRegions.clearRegions();
-                if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
-                currentObjectURL = URL.createObjectURL(file);
-                
-                wavesurfer.load(currentObjectURL);
-                analyzeAudio(file);
-                renderLoopList('file');
-            } 
-        };
+        document.getElementById('audioFile').onchange = e => { if(e.target.files[0]) { currentFileName = e.target.files[0].name; analyzeAudio(e.target.files[0]); } };
         
         const applySettings = () => {
             const s = parseFloat(document.getElementById('speed').value), p = parseInt(document.getElementById('pitch').value);
             const media = wavesurfer.getMediaElement();
             if (media) {
                 media.preservesPitch = true;
-                if (media.detune !== undefined) { 
-                    media.detune = p * 100; 
-                    wavesurfer.setPlaybackRate(s); 
-                } else { 
-                    if (p !== 0) { 
-                        media.preservesPitch = false; 
-                        wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); 
-                    } else { 
-                        media.preservesPitch = true; 
-                        wavesurfer.setPlaybackRate(s); 
-                    } 
-                }
+                if (p !== 0) { media.preservesPitch = false; wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); }
+                else { wavesurfer.setPlaybackRate(s); }
             }
             updateBpmDisplay();
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
         };
 
         wavesurfer.on('ready', () => { 
+            const lang = document.getElementById('langSelect').value;
+            document.getElementById('loadStatus').innerText = translations[lang].ready;
             document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
             applySettings(); 
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
         });
-        
-        document.getElementById('speed').oninput = applySettings;
-        document.getElementById('pitch').oninput = applySettings;
 
         document.getElementById('playBtn').onclick = async () => {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') await audioCtx.resume();
-            
-            if (wavesurfer.isPlaying()) {
-                wavesurfer.pause();
-            } else {
-                const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
-                if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
-                await runCountdown(); 
-                wavesurfer.play();
+            if (wavesurfer.isPlaying()) { wavesurfer.pause(); } 
+            else { 
+                const r = wsRegions.getRegions()[0];
+                if(r && (wavesurfer.getCurrentTime() < r.start || wavesurfer.getCurrentTime() >= r.end)) wavesurfer.setTime(r.start);
+                await runCountdown(); wavesurfer.play(); 
             }
         };
 
-        wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
-        wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
         wavesurfer.on('timeupdate', t => {
             document.getElementById('currentTime').innerText = fmt(t);
             const r = wsRegions.getRegions()[0];
             if(r && t >= r.end) { 
                 wavesurfer.setTime(r.start); 
-                if (isSpeedUpEnabled) {
-                    const s = document.getElementById('speed');
+                if(isSpeedUpEnabled) { 
+                    const s = document.getElementById('speed'); 
                     s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); 
-                    applySettings();
+                    applySettings(); 
                 }
             }
         });
 
+        document.getElementById('speed').oninput = applySettings;
+        document.getElementById('pitch').oninput = applySettings;
+        document.getElementById('zoomSlider').oninput = e => wavesurfer.zoom(Number(e.target.value));
+        document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
+        
+        wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
+        wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
+
         window.resetSetting = (id, val) => { document.getElementById(id).value = val; applySettings(); };
+        window.clearYTHistory = () => { if(confirm("Clear all history?")) { localStorage.removeItem('ams_yt_history'); renderYTHistory(); }};
+        
+        function updateBpmDisplay() { document.getElementById('spTxt').innerText = "BPM " + Math.round(originalBpm * parseFloat(document.getElementById('speed').value)); }
+        
         changeLanguage();
         renderYTHistory();
     }
-    
-    window.addEventListener('DOMContentLoaded', startApp);
+
+    document.addEventListener('DOMContentLoaded', startApp);
 </script>
 </body>
 </html>
