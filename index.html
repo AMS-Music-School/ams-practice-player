@@ -7,6 +7,7 @@
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <link rel="icon" href="icon.png?v=1.0.6" type="image/png">
     <link rel="apple-touch-icon" href="icon.png?v=1.0.6">
@@ -77,7 +78,7 @@
         .val-display { color: var(--primary-color); font-weight: bold; min-width: 70px; text-align: right; font-size: 0.95rem; }
         
         .transport-controls { 
-            display: flex; justify-content: center; align-items: center; gap: 10px; margin: 15px 0; 
+            display: flex; justify: center; align-items: center; gap: 10px; margin: 15px 0; 
         }
         .btn-ctrl { 
             background: var(--panel-bg); color: var(--text-dim); border: 1px solid var(--border-color); 
@@ -151,7 +152,6 @@
 
         .history-card { background: #252525; border: 1px solid var(--border-color); border-radius: 6px; padding: 8px 12px; min-width: 180px; max-width: 220px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
         .history-label { font-size: 0.7rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .history-del { color: #ff5555; font-size: 16px; margin-left: 8px; }
     </style>
 </head>
 <body>
@@ -187,7 +187,6 @@
     </div>
 
     <div id="file-section" class="content-section active">
-        <!-- ファイル選択エリア -->
         <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">ファイルを選択</label>
         <input type="file" id="audioFile" accept="audio/*">
 
@@ -195,7 +194,7 @@
             <span id="loadStatus">READY</span>
             <div style="display:flex; align-items:center; gap:8px;">
                 <span class="material-icons" style="font-size:18px;">zoom_in</span>
-                <input type="range" id="zoomSlider" min="0" max="500" value="100" style="width:80px;">
+                <input type="range" id="zoomSlider" min="0" max="500" value="0" style="width:80px;">
                 <button class="reset-btn" id="resetZoomBtn">FIT</button>
             </div>
             <span class="time-display"><span id="currentTime">00:00</span> / <span id="totalTime">00:00</span></span>
@@ -229,7 +228,6 @@
             </button>
         </div>
 
-        <!-- 録音パネル -->
         <div class="panel" style="border-color: var(--recording-red);">
             <div class="row">
                 <span style="font-size:0.7rem; color:var(--recording-red); font-weight:bold; letter-spacing:1px;">SELF-RECORDING CHECK</span>
@@ -238,7 +236,7 @@
                 </button>
             </div>
             <div id="rec-waveform-wrapper"><div id="rec-waveform"></div></div>
-            <div class="row" id="recControls" style="display:none; justify-content:center;">
+            <div class="row" id="recControls" style="display:none; justify-content:center; margin-top: 10px;">
                 <button class="clear-btn-ja" onclick="playRecording()" id="playRecBtn">
                     <span class="material-icons">play_circle</span> 録音再生
                 </button>
@@ -262,7 +260,6 @@
         </div>
     </div>
 
-    <!-- YouTubeセクション -->
     <div id="yt-section" class="content-section">
         <div style="display:flex; gap:8px; margin-bottom:10px; background:var(--panel-bg); padding:10px; border-radius:10px; border: 1px solid var(--border-color);">
             <input type="text" id="ytUrl" placeholder="YouTube URL..." style="flex-grow:1; padding:10px; border:1px solid var(--border-color); background:#000; color:#fff; border-radius:6px; font-size:0.8rem;">
@@ -339,11 +336,10 @@
         document.getElementById('yt-section').classList.toggle('active', mode === 'yt');
         document.getElementById('tab-file').classList.toggle('active', mode === 'file');
         document.getElementById('tab-yt').classList.toggle('active', mode === 'yt');
-        if(mode === 'file' && ytPlayer) ytPlayer.pauseVideo();
+        if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
         if(mode === 'yt' && wavesurfer) wavesurfer.pause();
     }
 
-    // 録音ロジック
     async function toggleRecording() {
         initAudioContext();
         if (isRecording) {
@@ -412,7 +408,7 @@
         return true;
     }
 
-    // YouTube 
+    // YouTube Setup
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
@@ -428,7 +424,7 @@
             } else {
                 ytPlayer = new YT.Player('player', {
                     videoId: currentYTId,
-                    events: { 'onStateChange': onPlayerStateChange, 'onReady': () => { renderLoopList('yt'); saveToHistory(currentYTId, "YouTube Video"); } }
+                    events: { 'onStateChange': onPlayerStateChange, 'onReady': () => { renderLoopList('yt'); saveToHistory(currentYTId); } }
                 });
             }
         }
@@ -456,10 +452,10 @@
         b.classList.toggle('active', isLooping);
     };
 
-    function saveToHistory(id, title) {
+    function saveToHistory(id) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
         history = history.filter(i => i.id !== id);
-        history.unshift({id, title});
+        history.unshift({id});
         localStorage.setItem('ams_yt_history', JSON.stringify(history.slice(0,10)));
         renderYTHistory();
     }
@@ -471,9 +467,12 @@
         list.innerHTML = history.map(i => `<div class="history-card" onclick="loadYouTube('https://youtu.be/${i.id}')"><span class="history-label">${i.id}</span></div>`).join('');
     }
 
-    // メイン起動処理
+    function clearYTHistory() {
+        localStorage.removeItem('ams_yt_history');
+        renderYTHistory();
+    }
+
     function startApp() {
-        // メインプレイヤー初期化
         wavesurfer = WaveSurfer.create({ 
             container: '#waveform', 
             waveColor: '#333', 
@@ -482,10 +481,10 @@
             barWidth: 2, 
             normalize: true,
             interact: true,
-            cursorColor: '#fff'
+            cursorColor: '#fff',
+            mediaControls: false
         });
 
-        // 録音プレイヤー初期化
         recWavesurfer = WaveSurfer.create({ 
             container: '#rec-waveform', 
             waveColor: '#522', 
@@ -497,26 +496,27 @@
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
 
-        // ファイル選択イベント (確実に動作するように修正)
         const fileInput = document.getElementById('audioFile');
+        const fileSelectBtn = document.getElementById('fileSelectBtn');
+
+        // タップ時にAudioContextを初期化（iOS対策）
+        fileSelectBtn.addEventListener('click', () => {
+            initAudioContext();
+        });
+
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
                 const lang = document.getElementById('langSelect').value;
                 document.getElementById('loadStatus').innerText = translations[lang].analyzing;
                 currentFileName = file.name;
-                document.getElementById('fileSelectBtn').innerText = currentFileName;
+                fileSelectBtn.innerText = currentFileName;
                 
-                // 既存のURLを解放
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
-                
-                // 新しいURLを作成
                 currentObjectURL = URL.createObjectURL(file);
                 
-                // 読み込み実行
                 wavesurfer.load(currentObjectURL);
                 
-                // 読み込み完了後の処理
                 wavesurfer.once('ready', () => {
                     document.getElementById('loadStatus').innerText = "READY";
                     document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration());
@@ -525,13 +525,11 @@
             }
         });
 
-        // 再生ボタン
         document.getElementById('playBtn').onclick = () => {
             initAudioContext();
             wavesurfer.isPlaying() ? wavesurfer.pause() : wavesurfer.play();
         };
 
-        // 状態更新
         wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
         wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
         wavesurfer.on('timeupdate', (t) => {
@@ -543,25 +541,26 @@
             }
         });
 
-        // ズーム
         document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
 
-        // 設定
         const applySettings = () => {
             const s = parseFloat(document.getElementById('speed').value);
             wavesurfer.setPlaybackRate(s);
             document.getElementById('spTxt').innerText = `BPM ${Math.round(originalBpm * s)}`;
             const p = parseInt(document.getElementById('pitch').value);
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
+            
+            // ピッチ変更時はPreservesPitchを無効にする（ブラウザのネイティブ機能利用）
             const media = wavesurfer.getMediaElement();
-            if(media) media.preservesPitch = (p === 0);
+            if(media) {
+                media.preservesPitch = (p === 0);
+            }
         };
 
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
-        // 録音プレイヤーのアイコン同期
         recWavesurfer.on('play', () => {
             const lang = document.getElementById('langSelect').value;
             document.getElementById('playRecBtn').innerHTML = `<span class="material-icons">stop_circle</span> ${translations[lang].recStop}`;
@@ -588,7 +587,10 @@
         const key = mode === 'file' ? currentFileName : currentYTId;
         if(!key) return;
         const r = mode === 'file' ? wsRegions.getRegions()[0] : {start: loopStart, end: loopEnd};
-        if(!r) return;
+        if(!r) {
+            alert(mode === 'file' ? "範囲を選択してください" : "START/ENDを設定してください");
+            return;
+        }
         const name = prompt("ループ名を入力:", "Loop " + fmt(r.start));
         if(!name) return;
         let loops = JSON.parse(localStorage.getItem('ams_loops_'+mode) || "{}");
@@ -602,18 +604,34 @@
         const key = mode === 'file' ? currentFileName : currentYTId;
         const container = document.getElementById('loopList' + (mode === 'file' ? 'File' : 'YT'));
         container.innerHTML = "";
+        if(!key) return;
         let loops = JSON.parse(localStorage.getItem('ams_loops_'+mode) || "{}")[key] || [];
         loops.forEach((l, i) => {
             const item = document.createElement('div');
             item.className = 'loop-item';
-            item.innerHTML = `<div class="loop-info" onclick="applyStoredLoop('${mode}', ${l.start}, ${l.end})"><span class="loop-name">${l.name}</span><span class="loop-times">${fmt(l.start)} - ${fmt(l.end)}</span></div><span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${i})">delete</span>`;
+            item.innerHTML = `
+                <div class="loop-info" onclick="applyStoredLoop('${mode}', ${l.start}, ${l.end})">
+                    <span class="loop-name">${l.name}</span>
+                    <span class="loop-times">${fmt(l.start)} - ${fmt(l.end)}</span>
+                </div>
+                <span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${i})">delete</span>`;
             container.appendChild(item);
         });
     }
 
     window.applyStoredLoop = (mode, s, e) => {
-        if(mode === 'file') { wsRegions.clearRegions(); wsRegions.addRegion({start:s, end:e, color:'rgba(212,163,115,0.2)'}); wavesurfer.setTime(s); }
-        else { loopStart = s; loopEnd = e; ytPlayer.seekTo(s); if(!isLooping) toggleLoop(); }
+        if(mode === 'file') { 
+            wsRegions.clearRegions(); 
+            wsRegions.addRegion({start:s, end:e, color:'rgba(212,163,115,0.2)'}); 
+            wavesurfer.setTime(s); 
+        } else { 
+            loopStart = s; 
+            loopEnd = e; 
+            document.getElementById('loopStartTxt').innerText = fmt(s);
+            document.getElementById('loopEndTxt').innerText = fmt(e);
+            ytPlayer.seekTo(s); 
+            if(!isLooping) toggleLoop(); 
+        }
     };
 
     window.deleteLoop = (mode, index) => {
@@ -624,7 +642,26 @@
         renderLoopList(mode);
     };
 
-    window.resetSetting = (id, val) => { document.getElementById(id).value = val; wavesurfer.setPlaybackRate(val); };
+    window.resetSetting = (id, val) => { 
+        document.getElementById(id).value = val; 
+        if(id === 'speed') wavesurfer.setPlaybackRate(val);
+        if(id === 'pitch') {
+            const media = wavesurfer.getMediaElement();
+            if(media) media.preservesPitch = true;
+        }
+        document.getElementById(id === 'speed' ? 'spTxt' : 'pitchTxt').innerText = id === 'speed' ? `BPM ${originalBpm}` : `±0`;
+    };
+
+    window.adjustTime = (type, val) => {
+        if(type === 'start') {
+            loopStart = Math.max(0, loopStart + val);
+            document.getElementById('loopStartTxt').innerText = fmt(loopStart);
+        } else {
+            loopEnd = Math.max(0, loopEnd + val);
+            document.getElementById('loopEndTxt').innerText = fmt(loopEnd);
+        }
+    };
+
     window.addEventListener('DOMContentLoaded', startApp);
 </script>
 </body>
