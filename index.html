@@ -126,12 +126,6 @@
             width: 100%; padding: 10px; background: #2a2a2a; color: #fff; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.9rem;
         }
 
-        .modal {
-            display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 90%; max-width: 500px; background: var(--panel-bg); border: 1px solid var(--primary-color);
-            border-radius: 16px; z-index: 4000; padding: 20px; box-shadow: 0 0 50px rgba(0,0,0,1);
-        }
-
         .mode-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 15px; background: var(--panel-bg); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); }
         .tab-btn { background: transparent; border: none; color: var(--text-dim); padding: 8px; cursor: pointer; border-radius: 6px; font-size: 0.75rem; flex: 1; transition: all 0.3s ease; }
         .tab-btn.active { background: var(--primary-color); color: #121212; font-weight: bold; }
@@ -184,11 +178,6 @@
     </select>
 </div>
 
-<div id="guideModalFile" class="modal">
-    <div class="guide-box-inner" id="guideFileContent"></div>
-    <button class="clear-btn-ja" style="width:100%; margin-top:20px;" onclick="closeModals()">閉じる</button>
-</div>
-
 <div class="container">
     <div style="text-align: center; margin-bottom: 15px;"><h2 style="color: var(--primary-color); font-size: 0.9rem; letter-spacing: 4px; margin: 0; font-weight: bold; text-transform: uppercase;">AMS Practice Player</h2></div>
 
@@ -198,6 +187,7 @@
     </div>
 
     <div id="file-section" class="content-section active">
+        <!-- ファイル選択エリア -->
         <label for="audioFile" class="custom-file-upload" id="fileSelectBtn">ファイルを選択</label>
         <input type="file" id="audioFile" accept="audio/*">
 
@@ -239,6 +229,7 @@
             </button>
         </div>
 
+        <!-- 録音パネル -->
         <div class="panel" style="border-color: var(--recording-red);">
             <div class="row">
                 <span style="font-size:0.7rem; color:var(--recording-red); font-weight:bold; letter-spacing:1px;">SELF-RECORDING CHECK</span>
@@ -271,6 +262,7 @@
         </div>
     </div>
 
+    <!-- YouTubeセクション -->
     <div id="yt-section" class="content-section">
         <div style="display:flex; gap:8px; margin-bottom:10px; background:var(--panel-bg); padding:10px; border-radius:10px; border: 1px solid var(--border-color);">
             <input type="text" id="ytUrl" placeholder="YouTube URL..." style="flex-grow:1; padding:10px; border:1px solid var(--border-color); background:#000; color:#fff; border-radius:6px; font-size:0.8rem;">
@@ -315,14 +307,14 @@
 <script>
     let wavesurfer, wsRegions, recWavesurfer, ytPlayer, loopInterval;
     let loopStart = 0, loopEnd = 0, isLooping = false, currentMode = 'file';
-    let audioCtx, originalBpm = 120, firstSoundTime = 0;
+    let audioCtx, originalBpm = 120;
     let currentFileName = "", currentYTId = "", currentObjectURL = null;
     let isCountEnabled = true, isSpeedUpEnabled = false;
     let mediaRecorder, recordedChunks = [], isRecording = false;
 
     const translations = {
-        ja: { recPlay: "録音再生", recStop: "再生停止", loopOff: "LOOP OFF", loopOn: "LOOP ON" },
-        en: { recPlay: "Play Rec", recStop: "Stop Rec", loopOff: "LOOP OFF", loopOn: "LOOP ON" }
+        ja: { recPlay: "録音再生", recStop: "再生停止", loopOff: "LOOP OFF", loopOn: "LOOP ON", analyzing: "読み込み中..." },
+        en: { recPlay: "Play Rec", recStop: "Stop Rec", loopOff: "LOOP OFF", loopOn: "LOOP ON", analyzing: "Loading..." }
     };
 
     function initAudioContext() {
@@ -331,7 +323,10 @@
         return audioCtx;
     }
 
-    const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+    const fmt = (s) => {
+        if(!s || isNaN(s)) return "00:00";
+        return `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
+    };
 
     function toggleMenu(isOpen) {
         document.getElementById('sideMenu').classList.toggle('open', isOpen);
@@ -360,13 +355,10 @@
         } else {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // ブラウザ互換性のためのMIMEタイプ
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
                 mediaRecorder = new MediaRecorder(stream, { mimeType });
                 recordedChunks = [];
-
                 mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-                
                 mediaRecorder.onstop = () => {
                     const blob = new Blob(recordedChunks, { type: mimeType });
                     const url = URL.createObjectURL(blob);
@@ -375,32 +367,21 @@
                     recWavesurfer.load(url);
                     stream.getTracks().forEach(track => track.stop());
                 };
-
                 const region = wsRegions.getRegions()[0];
                 if (region) wavesurfer.setTime(region.start);
-                
                 await runCountdown();
-                
                 mediaRecorder.start();
                 wavesurfer.play();
                 isRecording = true;
                 document.getElementById('recBtn').classList.add('recording');
                 document.getElementById('recIcon').innerText = 'stop';
-            } catch (err) {
-                alert("マイクの使用を許可してください。");
-            }
+            } catch (err) { alert("マイクの使用を許可してください。"); }
         }
     }
 
     function playRecording() {
         if (!recWavesurfer) return;
-        const lang = document.getElementById('langSelect').value;
-        const btn = document.getElementById('playRecBtn');
-        if (recWavesurfer.isPlaying()) {
-            recWavesurfer.pause();
-        } else {
-            recWavesurfer.play();
-        }
+        recWavesurfer.isPlaying() ? recWavesurfer.pause() : recWavesurfer.play();
     }
 
     function deleteRecording() {
@@ -431,26 +412,25 @@
         return true;
     }
 
-    // YouTube 関連
+    // YouTube 
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
-    function onYouTubeIframeAPIReady() { /* Ready */ }
+    function onYouTubeIframeAPIReady() {}
 
     function loadYouTube(manualUrl = null) {
         const url = manualUrl || document.getElementById('ytUrl').value;
         const id = url.match(/(?:v=|\/be\/)([\w-]+)/);
         if (id) {
             currentYTId = id[1];
-            if (ytPlayer) {
+            if (ytPlayer && ytPlayer.loadVideoById) {
                 ytPlayer.loadVideoById(currentYTId);
             } else {
                 ytPlayer = new YT.Player('player', {
                     videoId: currentYTId,
-                    events: { 'onStateChange': onPlayerStateChange, 'onReady': () => renderLoopList('yt') }
+                    events: { 'onStateChange': onPlayerStateChange, 'onReady': () => { renderLoopList('yt'); saveToHistory(currentYTId, "YouTube Video"); } }
                 });
             }
-            saveToHistory(currentYTId, "YouTube Video");
         }
     }
 
@@ -491,31 +471,70 @@
         list.innerHTML = history.map(i => `<div class="history-card" onclick="loadYouTube('https://youtu.be/${i.id}')"><span class="history-label">${i.id}</span></div>`).join('');
     }
 
+    // メイン起動処理
     function startApp() {
-        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true });
-        recWavesurfer = WaveSurfer.create({ container: '#rec-waveform', waveColor: '#522', progressColor: '#f44', height: 80, barWidth: 2 });
+        // メインプレイヤー初期化
+        wavesurfer = WaveSurfer.create({ 
+            container: '#waveform', 
+            waveColor: '#333', 
+            progressColor: '#d4a373', 
+            height: 120, 
+            barWidth: 2, 
+            normalize: true,
+            interact: true,
+            cursorColor: '#fff'
+        });
+
+        // 録音プレイヤー初期化
+        recWavesurfer = WaveSurfer.create({ 
+            container: '#rec-waveform', 
+            waveColor: '#522', 
+            progressColor: '#f44', 
+            height: 80, 
+            barWidth: 2 
+        });
+
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
 
-        document.getElementById('audioFile').onchange = e => {
+        // ファイル選択イベント (確実に動作するように修正)
+        const fileInput = document.getElementById('audioFile');
+        fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
+                const lang = document.getElementById('langSelect').value;
+                document.getElementById('loadStatus').innerText = translations[lang].analyzing;
                 currentFileName = file.name;
                 document.getElementById('fileSelectBtn').innerText = currentFileName;
-                const url = URL.createObjectURL(file);
-                wavesurfer.load(url);
-                renderLoopList('file');
+                
+                // 既存のURLを解放
+                if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
+                
+                // 新しいURLを作成
+                currentObjectURL = URL.createObjectURL(file);
+                
+                // 読み込み実行
+                wavesurfer.load(currentObjectURL);
+                
+                // 読み込み完了後の処理
+                wavesurfer.once('ready', () => {
+                    document.getElementById('loadStatus').innerText = "READY";
+                    document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration());
+                    renderLoopList('file');
+                });
             }
-        };
+        });
 
+        // 再生ボタン
         document.getElementById('playBtn').onclick = () => {
             initAudioContext();
             wavesurfer.isPlaying() ? wavesurfer.pause() : wavesurfer.play();
         };
 
+        // 状態更新
         wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
         wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
-        wavesurfer.on('timeupdate', t => {
+        wavesurfer.on('timeupdate', (t) => {
             document.getElementById('currentTime').innerText = fmt(t);
             const r = wsRegions.getRegions()[0];
             if (r && t >= r.end) {
@@ -524,7 +543,25 @@
             }
         });
 
-        // 録音再生ボタンのアイコン更新用
+        // ズーム
+        document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
+        document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
+
+        // 設定
+        const applySettings = () => {
+            const s = parseFloat(document.getElementById('speed').value);
+            wavesurfer.setPlaybackRate(s);
+            document.getElementById('spTxt').innerText = `BPM ${Math.round(originalBpm * s)}`;
+            const p = parseInt(document.getElementById('pitch').value);
+            document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
+            const media = wavesurfer.getMediaElement();
+            if(media) media.preservesPitch = (p === 0);
+        };
+
+        document.getElementById('speed').oninput = applySettings;
+        document.getElementById('pitch').oninput = applySettings;
+
+        // 録音プレイヤーのアイコン同期
         recWavesurfer.on('play', () => {
             const lang = document.getElementById('langSelect').value;
             document.getElementById('playRecBtn').innerHTML = `<span class="material-icons">stop_circle</span> ${translations[lang].recStop}`;
@@ -537,11 +574,6 @@
             const lang = document.getElementById('langSelect').value;
             document.getElementById('playRecBtn').innerHTML = `<span class="material-icons">play_circle</span> ${translations[lang].recPlay}`;
         });
-
-        document.getElementById('speed').oninput = e => {
-            wavesurfer.setPlaybackRate(parseFloat(e.target.value));
-            document.getElementById('spTxt').innerText = `BPM ${Math.round(originalBpm * e.target.value)}`;
-        };
 
         renderYTHistory();
     }
@@ -557,9 +589,11 @@
         if(!key) return;
         const r = mode === 'file' ? wsRegions.getRegions()[0] : {start: loopStart, end: loopEnd};
         if(!r) return;
+        const name = prompt("ループ名を入力:", "Loop " + fmt(r.start));
+        if(!name) return;
         let loops = JSON.parse(localStorage.getItem('ams_loops_'+mode) || "{}");
         if(!loops[key]) loops[key] = [];
-        loops[key].push({name: "Loop "+fmt(r.start), start: r.start, end: r.end});
+        loops[key].push({name, start: r.start, end: r.end});
         localStorage.setItem('ams_loops_'+mode, JSON.stringify(loops));
         renderLoopList(mode);
     }
@@ -572,7 +606,7 @@
         loops.forEach((l, i) => {
             const item = document.createElement('div');
             item.className = 'loop-item';
-            item.innerHTML = `<div class="loop-info" onclick="applyStoredLoop('${mode}', ${l.start}, ${l.end})"><span class="loop-name">${l.name}</span></div>`;
+            item.innerHTML = `<div class="loop-info" onclick="applyStoredLoop('${mode}', ${l.start}, ${l.end})"><span class="loop-name">${l.name}</span><span class="loop-times">${fmt(l.start)} - ${fmt(l.end)}</span></div><span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${i})">delete</span>`;
             container.appendChild(item);
         });
     }
@@ -580,6 +614,14 @@
     window.applyStoredLoop = (mode, s, e) => {
         if(mode === 'file') { wsRegions.clearRegions(); wsRegions.addRegion({start:s, end:e, color:'rgba(212,163,115,0.2)'}); wavesurfer.setTime(s); }
         else { loopStart = s; loopEnd = e; ytPlayer.seekTo(s); if(!isLooping) toggleLoop(); }
+    };
+
+    window.deleteLoop = (mode, index) => {
+        const key = mode === 'file' ? currentFileName : currentYTId;
+        let loops = JSON.parse(localStorage.getItem('ams_loops_'+mode) || "{}");
+        loops[key].splice(index, 1);
+        localStorage.setItem('ams_loops_'+mode, JSON.stringify(loops));
+        renderLoopList(mode);
     };
 
     window.resetSetting = (id, val) => { document.getElementById(id).value = val; wavesurfer.setPlaybackRate(val); };
