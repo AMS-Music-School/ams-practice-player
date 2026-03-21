@@ -51,6 +51,7 @@
         #waveform-wrapper { 
             position: relative; background: #000; border: 1px solid var(--border-color); 
             border-radius: 8px; margin-bottom: 10px; overflow: hidden;
+            min-height: 120px;
         }
         
         .waveform-label { 
@@ -170,7 +171,6 @@
         .loop-times { color: var(--text-dim); font-size: 0.7rem; }
         .loop-delete { color: #ff5555; cursor: pointer; padding: 5px; }
 
-        /* 履歴アイテムのスタイル */
         .history-card {
             background: #252525; border: 1px solid var(--border-color); border-radius: 6px;
             padding: 6px 10px; min-width: 120px; max-width: 180px; flex-shrink: 0;
@@ -310,14 +310,12 @@
             <button class="tab-btn active" style="flex:0; min-width:60px;" onclick="loadYouTube()">LOAD</button>
         </div>
 
-        <!-- 履歴表示エリア -->
         <div id="ytHistoryContainer" style="margin-bottom: 15px; display: none;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
                 <span style="font-size:0.7rem; color:var(--primary-color); font-weight:bold;">RECENT HISTORY</span>
                 <button class="reset-btn" onclick="clearYTHistory()" style="font-size:0.6rem;">Clear All</button>
             </div>
             <div id="ytHistoryList" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:5px; scrollbar-width: none;">
-                <!-- 履歴アイテム -->
             </div>
         </div>
 
@@ -367,7 +365,7 @@
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
             fileSelect: "Select Audio File", saveLoop: "Save Loop",
             guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
-            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
+            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and xpress LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
         }
     };
 
@@ -451,24 +449,30 @@
 
     async function analyzeAudio(file) {
         const lang = document.getElementById('langSelect').value;
-        document.getElementById('loadStatus').innerText = translations[lang].analyzing;
+        const statusEl = document.getElementById('loadStatus');
+        statusEl.innerText = translations[lang].analyzing;
+        
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
         try {
             const arrayBuffer = await file.arrayBuffer();
             const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
             const data = audioBuffer.getChannelData(0);
             let skip = 0;
-            for (let i = 0; i < data.length; i++) { 
-                if (Math.abs(data[i]) > 0.015) { skip = i / audioBuffer.sampleRate; break; } 
+            const threshold = 0.015;
+            for (let i = 0; i < data.length; i += 100) { 
+                if (Math.abs(data[i]) > threshold) { skip = i / audioBuffer.sampleRate; break; } 
             }
             firstSoundTime = skip;
             const bpm = detectBPM(audioBuffer);
             if (bpm > 0) { originalBpm = Math.round(bpm); updateBpmDisplay(); }
-            document.getElementById('loadStatus').innerText = translations[lang].ready;
-            if(wavesurfer) wavesurfer.setTime(firstSoundTime);
+            statusEl.innerText = translations[lang].ready;
+            if(wavesurfer && wavesurfer.isReady) wavesurfer.setTime(firstSoundTime);
         } catch (e) {
-            document.getElementById('loadStatus').innerText = translations[lang].ready;
-        } finally { tempCtx.close(); }
+            console.error("Audio Analysis Error:", e);
+            statusEl.innerText = translations[lang].ready;
+        } finally { 
+            tempCtx.close(); 
+        }
     }
 
     function updateBpmDisplay() {
@@ -496,6 +500,7 @@
 
     function playBeep(isLast) {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
         osc.frequency.setValueAtTime(isLast ? 880 : 440, audioCtx.currentTime);
         gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
@@ -684,11 +689,15 @@
         document.getElementById('audioFile').onchange = e => { 
             const file = e.target.files[0];
             if(file) { 
+                const lang = document.getElementById('langSelect').value;
+                document.getElementById('loadStatus').innerText = translations[lang].analyzing;
                 currentFileName = file.name;
                 document.getElementById('fileSelectBtn').innerText = currentFileName;
+                
                 wsRegions.clearRegions();
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 currentObjectURL = URL.createObjectURL(file);
+                
                 wavesurfer.load(currentObjectURL);
                 analyzeAudio(file);
                 renderLoopList('file');
@@ -700,24 +709,43 @@
             const media = wavesurfer.getMediaElement();
             if (media) {
                 media.preservesPitch = true;
-                if (media.detune !== undefined) { media.detune = p * 100; wavesurfer.setPlaybackRate(s); }
-                else { if (p !== 0) { media.preservesPitch = false; wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); } else { media.preservesPitch = true; wavesurfer.setPlaybackRate(s); } }
+                if (media.detune !== undefined) { 
+                    media.detune = p * 100; 
+                    wavesurfer.setPlaybackRate(s); 
+                } else { 
+                    if (p !== 0) { 
+                        media.preservesPitch = false; 
+                        wavesurfer.setPlaybackRate(s * Math.pow(2, p / 12)); 
+                    } else { 
+                        media.preservesPitch = true; 
+                        wavesurfer.setPlaybackRate(s); 
+                    } 
+                }
             }
             updateBpmDisplay();
             document.getElementById('pitchTxt').innerText = (p > 0 ? "+" : "") + p;
         };
 
-        wavesurfer.on('ready', () => { document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); applySettings(); if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); });
+        wavesurfer.on('ready', () => { 
+            document.getElementById('totalTime').innerText = fmt(wavesurfer.getDuration()); 
+            applySettings(); 
+            if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
+        });
+        
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
         document.getElementById('playBtn').onclick = async () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (wavesurfer.isPlaying()) wavesurfer.pause();
-            else {
+            if (audioCtx.state === 'suspended') await audioCtx.resume();
+            
+            if (wavesurfer.isPlaying()) {
+                wavesurfer.pause();
+            } else {
                 const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
                 if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
-                await runCountdown(); wavesurfer.play();
+                await runCountdown(); 
+                wavesurfer.play();
             }
         };
 
@@ -730,7 +758,8 @@
                 wavesurfer.setTime(r.start); 
                 if (isSpeedUpEnabled) {
                     const s = document.getElementById('speed');
-                    s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); applySettings();
+                    s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); 
+                    applySettings();
                 }
             }
         });
@@ -739,7 +768,8 @@
         changeLanguage();
         renderYTHistory();
     }
-    startApp();
+    
+    window.addEventListener('DOMContentLoaded', startApp);
 </script>
 </body>
 </html>
