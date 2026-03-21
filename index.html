@@ -173,14 +173,15 @@
 
         .history-card {
             background: #252525; border: 1px solid var(--border-color); border-radius: 6px;
-            padding: 6px 10px; min-width: 120px; max-width: 180px; flex-shrink: 0;
+            padding: 8px 12px; min-width: 200px; max-width: 250px; flex-shrink: 0;
             display: flex; justify-content: space-between; align-items: center; cursor: pointer;
         }
         .history-label {
-            font-size: 0.7rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            font-size: 0.75rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
-        .history-del { color: #ff5555; font-size: 14px; margin-left: 5px; }
-        #ytHistoryList::-webkit-scrollbar { display: none; }
+        .history-del { color: #ff5555; font-size: 18px; margin-left: 10px; }
+        #ytHistoryList::-webkit-scrollbar { height: 4px; }
+        #ytHistoryList::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 10px; }
 
         @media (max-width: 480px) {
             .transport-controls { gap: 8px; }
@@ -315,7 +316,7 @@
                 <span style="font-size:0.7rem; color:var(--primary-color); font-weight:bold;">RECENT HISTORY</span>
                 <button class="reset-btn" onclick="clearYTHistory()" style="font-size:0.6rem;">Clear All</button>
             </div>
-            <div id="ytHistoryList" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:5px; scrollbar-width: none;">
+            <div id="ytHistoryList" style="display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; scrollbar-width: thin;">
             </div>
         </div>
 
@@ -365,7 +366,7 @@
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
             fileSelect: "Select Audio File", saveLoop: "Save Loop",
             guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
-            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and xpress LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
+            guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
         }
     };
 
@@ -532,19 +533,25 @@
         if (videoId) {
             currentYTId = videoId;
             document.getElementById('loopListYT').innerHTML = ""; 
-            if (ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(videoId);
-            else ytPlayer = new YT.Player('player', { videoId: videoId, events: { 'onReady': onPlayerReady, 'onStateChange': onPlayerStateChange } });
-            
-            saveToHistory(videoId, url);
-            renderLoopList('yt');
+            if (ytPlayer && ytPlayer.loadVideoById) {
+                ytPlayer.loadVideoById(videoId);
+            } else {
+                ytPlayer = new YT.Player('player', { 
+                    videoId: videoId, 
+                    events: { 
+                        'onReady': onPlayerReady, 
+                        'onStateChange': onPlayerStateChange 
+                    } 
+                });
+            }
             document.getElementById('ytUrl').value = "";
         }
     }
 
-    function saveToHistory(id, url) {
+    function saveToHistory(id, title, url) {
         let history = JSON.parse(localStorage.getItem('ams_yt_history') || "[]");
         history = history.filter(item => item.id !== id);
-        history.unshift({ id: id, url: url, time: Date.now() });
+        history.unshift({ id: id, title: title || id, url: url, time: Date.now() });
         if (history.length > 10) history.pop();
         localStorage.setItem('ams_yt_history', JSON.stringify(history));
         renderYTHistory();
@@ -562,7 +569,7 @@
             card.className = 'history-card';
             card.onclick = () => loadYouTube(item.url);
             card.innerHTML = `
-                <span class="history-label">ID: ${item.id}</span>
+                <span class="history-label">${item.title}</span>
                 <span class="material-icons history-del" onclick="event.stopPropagation(); deleteHistoryItem('${item.id}')">cancel</span>
             `;
             historyList.appendChild(card);
@@ -583,21 +590,50 @@
         }
     };
 
-    function onPlayerReady() { renderLoopList('yt'); }
-    function onPlayerStateChange(e) {
-        if (e.data == YT.PlayerState.PLAYING) loopInterval = setInterval(() => { if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) ytPlayer.seekTo(loopStart); }, 200);
-        else clearInterval(loopInterval);
+    function onPlayerReady(event) {
+        const videoData = ytPlayer.getVideoData();
+        const title = videoData.title;
+        const videoId = videoData.video_id;
+        const url = `https://www.youtube.com/watch?v=${videoId}`;
+        saveToHistory(videoId, title, url);
+        renderLoopList('yt');
     }
+
+    function onPlayerStateChange(e) {
+        if (e.data == YT.PlayerState.PLAYING) {
+            loopInterval = setInterval(() => { 
+                if (isLooping && ytPlayer.getCurrentTime() >= loopEnd) {
+                    ytPlayer.seekTo(loopStart);
+                } 
+            }, 200);
+        } else {
+            clearInterval(loopInterval);
+        }
+    }
+
     const fmt = (s) => `${Math.floor(s/60).toString().padStart(2,'0')}:${Math.floor(s%60).toString().padStart(2,'0')}`;
     window.setLoopPoint = (t) => {
         const now = ytPlayer.getCurrentTime();
-        if (t === 'start') { loopStart = Math.floor(now); document.getElementById('loopStartTxt').innerText = fmt(loopStart); }
-        else { loopEnd = Math.ceil(now); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
+        if (t === 'start') { 
+            loopStart = Math.floor(now); 
+            document.getElementById('loopStartTxt').innerText = fmt(loopStart); 
+        } else { 
+            loopEnd = Math.ceil(now); 
+            document.getElementById('loopEndTxt').innerText = fmt(loopEnd); 
+        }
     };
+
     window.adjustTime = (t, a) => {
-        if (t === 'start') { loopStart = Math.max(0, loopStart + a); document.getElementById('loopStartTxt').innerText = fmt(loopStart); ytPlayer.seekTo(loopStart); }
-        else { loopEnd = Math.max(loopStart + 1, loopEnd + a); document.getElementById('loopEndTxt').innerText = fmt(loopEnd); }
+        if (t === 'start') { 
+            loopStart = Math.max(0, loopStart + a); 
+            document.getElementById('loopStartTxt').innerText = fmt(loopStart); 
+            ytPlayer.seekTo(loopStart); 
+        } else { 
+            loopEnd = Math.max(loopStart + 1, loopEnd + a); 
+            document.getElementById('loopEndTxt').innerText = fmt(loopEnd); 
+        }
     };
+
     window.toggleLoop = () => { 
         isLooping = !isLooping; 
         const lang = document.getElementById('langSelect').value;
@@ -617,7 +653,8 @@
             start = loopStart; end = loopEnd; key = currentYTId;
             if (start >= end) return alert("開始位置は終了位置より前に設定してください。");
         }
-        const name = prompt("ループの名前を入力してください", `Loop ${Date.now().toString().slice(-4)}`);
+        const defaultName = `Loop ${fmt(start)}-${fmt(end)}`;
+        const name = prompt("ループの名前を入力してください", defaultName);
         if (!name) return;
         const loopData = { name, start, end };
         let storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
@@ -681,7 +718,10 @@
         });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
-        wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
+        wsRegions.on('region-created', r => { 
+            if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); 
+            wavesurfer.setTime(r.start); 
+        });
 
         document.getElementById('zoomSlider').oninput = (e) => wavesurfer.zoom(Number(e.target.value));
         document.getElementById('resetZoomBtn').onclick = () => { wavesurfer.zoom(0); document.getElementById('zoomSlider').value = 0; };
