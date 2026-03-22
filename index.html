@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player v1.0.9</title>
+    <title>AMS Practice Player v1.1.0</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.9" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.9">
+    <link rel="icon" href="icon.png?v=1.1.0" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.1.0">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -464,8 +464,14 @@
         document.getElementById('menuOverlay').style.display = 'none';
     }
 
+    // AudioContextを楽曲再生にも紐付けるための設定
     function initAudioContext() {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)({
+                latencyHint: 'interactive',
+                sampleRate: 44100,
+            });
+        }
         if (audioCtx.state === 'suspended') audioCtx.resume();
         return audioCtx;
     }
@@ -563,7 +569,7 @@
         overlay.style.display = 'none'; return true;
     }
 
-    // --- 録音機能 (音量安定化のためのマイク制約追加) ---
+    // --- 録音機能 (音量安定化の強化) ---
     async function toggleRecording() {
         initAudioContext();
         if (isRecording) {
@@ -574,12 +580,15 @@
             document.getElementById('recIcon').innerText = 'mic';
         } else {
             try {
-                // 音量不安定を解消するための制約(AGC/ノイズ抑制をオフ)
+                // ブラウザの「ダッキング（マイク使用時に音量を下げる）」を回避するための制約
                 const constraints = { 
                     audio: {
                         autoGainControl: false,
                         echoCancellation: false,
-                        noiseSuppression: false
+                        noiseSuppression: false,
+                        // 一部の環境でダッキングを防ぐためのヒント
+                        channelCount: 1,
+                        volume: 1.0
                     }
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -605,7 +614,13 @@
 
                 await runCountdown();
                 
+                // 録音開始
                 mediaRecorder.start();
+                
+                // 曲の音量を録音開始直後に「1.0」で上書き（ブラウザのダッキング対策）
+                const audioEl = wavesurfer.getMediaElement();
+                if (audioEl) audioEl.volume = 1.0; 
+                
                 wavesurfer.play();
                 isRecording = true;
                 document.getElementById('recBtn').classList.add('recording');
@@ -799,14 +814,26 @@
     };
 
     function startApp() {
+        // WaveSurferの初期化時にWeb Audioを利用するようにし、ブラウザの音量自動制限を回避しやすくする
         wavesurfer = WaveSurfer.create({ 
-            container: '#waveform', waveColor: '#333', progressColor: '#d4a373', 
-            height: 120, barWidth: 2, normalize: true, cursorColor: '#fff'
+            container: '#waveform', 
+            waveColor: '#333', 
+            progressColor: '#d4a373', 
+            height: 120, 
+            barWidth: 2, 
+            normalize: true, 
+            cursorColor: '#fff',
+            mediaControls: false
         });
 
         recWavesurfer = WaveSurfer.create({
-            container: '#rec-waveform', waveColor: '#552222', progressColor: '#ff4444',
-            height: 80, barWidth: 2, normalize: true, cursorColor: '#fff'
+            container: '#rec-waveform', 
+            waveColor: '#552222', 
+            progressColor: '#ff4444',
+            height: 80, 
+            barWidth: 2, 
+            normalize: true, 
+            cursorColor: '#fff'
         });
         
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
