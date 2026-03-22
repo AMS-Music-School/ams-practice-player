@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player v1.1.0</title>
+    <title>AMS Practice Player v1.1.1</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.1.0" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.1.0">
+    <link rel="icon" href="icon.png?v=1.1.1" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.1.1">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -231,11 +231,11 @@
     <span class="menu-section-title" id="helpTitle">Help & Guide</span>
     <div class="menu-item" onclick="showGuide('file')">
         <span class="material-icons">description</span>
-        <span id="guideFileTitle">Audio File Mode Guide</span>
+        <span id="guideFileTitle">Audio Fileモード ガイド</span>
     </div>
     <div class="menu-item" onclick="showGuide('yt')">
         <span class="material-icons">smart_display</span>
-        <span id="guideYTTitle">YouTube Mode Guide</span>
+        <span id="guideYTTitle">YouTubeモード ガイド</span>
     </div>
 </div>
 
@@ -464,7 +464,6 @@
         document.getElementById('menuOverlay').style.display = 'none';
     }
 
-    // AudioContextを楽曲再生にも紐付けるための設定
     function initAudioContext() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)({
@@ -569,7 +568,7 @@
         overlay.style.display = 'none'; return true;
     }
 
-    // --- 録音機能 (音量安定化の強化) ---
+    // --- 録音機能 (再生されない問題の修正) ---
     async function toggleRecording() {
         initAudioContext();
         if (isRecording) {
@@ -580,21 +579,23 @@
             document.getElementById('recIcon').innerText = 'mic';
         } else {
             try {
-                // ブラウザの「ダッキング（マイク使用時に音量を下げる）」を回避するための制約
+                // iOS Safari等のダッキング対策設定
                 const constraints = { 
                     audio: {
-                        autoGainControl: false,
                         echoCancellation: false,
                         noiseSuppression: false,
-                        // 一部の環境でダッキングを防ぐためのヒント
-                        channelCount: 1,
-                        volume: 1.0
+                        autoGainControl: false
                     }
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                
+                // ストリーム開始直後にAudioContextを再開して音出力を確保
+                if (audioCtx) await audioCtx.resume();
+                
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
                 mediaRecorder = new MediaRecorder(stream, { mimeType });
                 recordedChunks = [];
+                
                 mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = async () => {
                     const blob = new Blob(recordedChunks, { type: mimeType });
@@ -617,9 +618,12 @@
                 // 録音開始
                 mediaRecorder.start();
                 
-                // 曲の音量を録音開始直後に「1.0」で上書き（ブラウザのダッキング対策）
+                // 重要: マイク使用により音量が下がらないよう強制設定
                 const audioEl = wavesurfer.getMediaElement();
-                if (audioEl) audioEl.volume = 1.0; 
+                if (audioEl) {
+                    audioEl.muted = false;
+                    audioEl.volume = 1.0; 
+                }
                 
                 wavesurfer.play();
                 isRecording = true;
@@ -633,14 +637,19 @@
     }
 
     function playRecording() {
-        if (!recWavesurfer) return;
+        if (!recWavesurfer || !recWavesurfer.getDuration()) return;
+        
         if (recWavesurfer.isPlaying()) {
             recWavesurfer.pause();
             wavesurfer.pause();
         } else {
+            // 楽曲と録音音源を同期させて再生
             wavesurfer.setTime(lastRecStartPos);
-            recWavesurfer.play();
+            recWavesurfer.setTime(0);
+            
+            // 同時スタート
             wavesurfer.play();
+            recWavesurfer.play();
         }
         updateRecPlayBtnUI();
     }
@@ -814,7 +823,6 @@
     };
 
     function startApp() {
-        // WaveSurferの初期化時にWeb Audioを利用するようにし、ブラウザの音量自動制限を回避しやすくする
         wavesurfer = WaveSurfer.create({ 
             container: '#waveform', 
             waveColor: '#333', 
