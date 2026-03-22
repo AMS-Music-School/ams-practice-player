@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player</title>
+    <title>AMS Practice Player v1.0.7</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.6" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.6">
+    <link rel="icon" href="icon.png?v=1.0.7" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.7">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -55,7 +55,7 @@
             min-height: 120px;
         }
         
-        #rec-waveform-wrapper { min-height: 80px; margin-top: 10px; display: none; border-color: var(--recording-red); }
+        #rec-waveform-wrapper { min-height: 80px; margin-top: 10px; display: none; border: 2px solid var(--recording-red); }
 
         .waveform-label { 
             font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px; 
@@ -299,6 +299,7 @@
             </button>
         </div>
 
+        <!-- 録音パネル -->
         <div class="panel" style="border-color: var(--recording-red);">
             <div class="row">
                 <span style="font-size:0.7rem; color:var(--recording-red); font-weight:bold; letter-spacing:1px;">SELF-RECORDING CHECK</span>
@@ -307,7 +308,7 @@
                 </button>
             </div>
             <div id="rec-waveform-wrapper"><div id="rec-waveform"></div></div>
-            <div class="row" id="recControls" style="display:none; justify-content:center;">
+            <div class="row" id="recControls" style="display:none; justify-content:center; gap:10px; margin-top:10px;">
                 <button class="clear-btn-ja" onclick="playRecording()" id="playRecBtn">
                     <span class="material-icons">play_circle</span> 録音再生
                 </button>
@@ -321,7 +322,7 @@
             <div class="row">
                 <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Speed <button class="reset-btn" onclick="resetSetting('speed', 1.0)">Reset</button></div>
                 <input type="range" id="speed" min="0.5" max="1.5" step="0.01" value="1.0">
-                <span id="spTxt" class="val-display">BPM 120</span>
+                <span id="spTxt" class="val-display">BPM ---</span>
             </div>
             <div class="row">
                 <div style="min-width:65px; font-weight:bold; color:var(--text-dim); font-size:0.75rem;">Pitch <button class="reset-btn" onclick="resetSetting('pitch', 0)">Reset</button></div>
@@ -404,6 +405,7 @@
     let isCountEnabled = true, isSpeedUpEnabled = false;
     let mediaRecorder, recordedChunks = [];
     let isRecording = false;
+    let recObjectURL = null;
 
     // 言語切り替え
     function changeLanguage() {
@@ -423,9 +425,10 @@
         document.getElementById('guideFileContent').innerHTML = t.guideFileContent;
         document.getElementById('guideYTContent').innerHTML = t.guideYTContent;
         
-        const fileInput = document.getElementById('audioFile');
         const fileLabel = document.getElementById('fileSelectBtn');
-        if (!fileInput.files.length) fileLabel.innerText = t.fileSelect;
+        if (fileLabel.innerText.includes("ファイル") || fileLabel.innerText.includes("Select")) {
+            fileLabel.innerText = t.fileSelect;
+        }
 
         const loadS = document.getElementById('loadStatus');
         if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備")) loadS.innerText = t.ready;
@@ -433,9 +436,17 @@
         const loopB = document.getElementById('toggleLoopBtn');
         loopB.innerText = isLooping ? t.loopOn : t.loopOff;
 
-        const playRecBtn = document.getElementById('playRecBtn');
-        if (playRecBtn && recWavesurfer) {
-            playRecBtn.innerHTML = recWavesurfer.isPlaying() ? `<span class="material-icons">stop_circle</span> ${t.recStop}` : `<span class="material-icons">play_circle</span> ${t.recPlay}`;
+        updateRecPlayBtnUI();
+    }
+
+    function updateRecPlayBtnUI() {
+        const lang = document.getElementById('langSelect').value;
+        const t = translations[lang] || translations['ja'];
+        const btn = document.getElementById('playRecBtn');
+        if (recWavesurfer && recWavesurfer.isPlaying()) {
+            btn.innerHTML = `<span class="material-icons">stop_circle</span> ${t.recStop}`;
+        } else {
+            btn.innerHTML = `<span class="material-icons">play_circle</span> ${t.recPlay}`;
         }
     }
 
@@ -557,6 +568,7 @@
         overlay.style.display = 'none'; return true;
     }
 
+    // --- 録音機能の修正 ---
     async function toggleRecording() {
         if (isRecording) {
             mediaRecorder.stop();
@@ -569,42 +581,63 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 mediaRecorder = new MediaRecorder(stream);
                 recordedChunks = [];
-                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
-                mediaRecorder.onstop = () => {
+
+                mediaRecorder.ondataavailable = (e) => { 
+                    if (e.data.size > 0) recordedChunks.push(e.data); 
+                };
+
+                mediaRecorder.onstop = async () => {
                     const blob = new Blob(recordedChunks, { type: 'audio/webm' });
-                    const url = URL.createObjectURL(blob);
+                    if (recObjectURL) URL.revokeObjectURL(recObjectURL);
+                    recObjectURL = URL.createObjectURL(blob);
+                    
                     document.getElementById('rec-waveform-wrapper').style.display = 'block';
                     document.getElementById('recControls').style.display = 'flex';
-                    recWavesurfer.load(url);
+                    
+                    await recWavesurfer.load(recObjectURL);
+                    updateRecPlayBtnUI();
                     stream.getTracks().forEach(track => track.stop());
                 };
+
                 initAudioContext();
                 const region = wsRegions.getRegions()[0];
                 if (region) wavesurfer.setTime(region.start);
+                
                 await runCountdown();
+                
                 mediaRecorder.start();
                 wavesurfer.play();
                 isRecording = true;
                 document.getElementById('recBtn').classList.add('recording');
                 document.getElementById('recIcon').innerText = 'stop';
-            } catch (err) { alert("マイク使用不可"); }
+            } catch (err) { 
+                console.error(err);
+                alert("マイクの使用が許可されていないか、エラーが発生しました。"); 
+            }
         }
     }
 
     function playRecording() {
-        if (recWavesurfer.isPlaying()) recWavesurfer.pause();
-        else recWavesurfer.play();
+        if (!recWavesurfer) return;
+        if (recWavesurfer.isPlaying()) {
+            recWavesurfer.pause();
+        } else {
+            recWavesurfer.play();
+        }
+        updateRecPlayBtnUI();
     }
 
     function deleteRecording() {
-        if (confirm("削除しますか？")) {
+        if (confirm("録音を削除しますか？")) {
             document.getElementById('rec-waveform-wrapper').style.display = 'none';
             document.getElementById('recControls').style.display = 'none';
+            if (recObjectURL) URL.revokeObjectURL(recObjectURL);
+            recObjectURL = null;
             recWavesurfer.empty();
         }
     }
 
-    // YouTube API
+    // --- YouTube API ---
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
@@ -822,7 +855,11 @@
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
         });
 
-        recWavesurfer.on('finish', () => changeLanguage());
+        // 録音再生終了時の処理
+        recWavesurfer.on('finish', () => {
+            updateRecPlayBtnUI();
+        });
+
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
