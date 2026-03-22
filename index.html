@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player v1.0.7</title>
+    <title>AMS Practice Player v1.0.8</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.7" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.7">
+    <link rel="icon" href="icon.png?v=1.0.8" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.8">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -405,8 +405,8 @@
     let mediaRecorder, recordedChunks = [];
     let isRecording = false;
     let recObjectURL = null;
+    let lastRecStartPos = 0; // 録音を開始した時の曲の秒数を保持
 
-    // 言語切り替え
     function changeLanguage() {
         const lang = document.getElementById('langSelect').value || 'ja';
         const t = translations[lang] || translations['ja'];
@@ -428,17 +428,13 @@
         if (fileLabel.innerText.includes("ファイル") || fileLabel.innerText.includes("Select")) {
             fileLabel.innerText = t.fileSelect;
         }
-
         const loadS = document.getElementById('loadStatus');
         if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備")) loadS.innerText = t.ready;
-        
         const loopB = document.getElementById('toggleLoopBtn');
         loopB.innerText = isLooping ? t.loopOn : t.loopOff;
-
         updateRecPlayBtnUI();
     }
 
-    // 録音再生ボタンのUI更新
     function updateRecPlayBtnUI() {
         const lang = document.getElementById('langSelect').value;
         const t = translations[lang] || translations['ja'];
@@ -501,7 +497,6 @@
         const lang = document.getElementById('langSelect').value;
         const statusEl = document.getElementById('loadStatus');
         statusEl.innerText = translations[lang].analyzing;
-        
         const tempCtx = new (window.AudioContext || window.webkitAudioContext)();
         try {
             const arrayBuffer = await blob.arrayBuffer();
@@ -568,7 +563,7 @@
         overlay.style.display = 'none'; return true;
     }
 
-    // --- 録音機能 (参考コードのロジックを統合) ---
+    // --- 録音機能 (同期再生対応) ---
     async function toggleRecording() {
         initAudioContext();
         if (isRecording) {
@@ -580,31 +575,26 @@
         } else {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // ブラウザ互換性のためのMIMEタイプ
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
                 mediaRecorder = new MediaRecorder(stream, { mimeType });
                 recordedChunks = [];
-
-                mediaRecorder.ondataavailable = (e) => { 
-                    if (e.data.size > 0) recordedChunks.push(e.data); 
-                };
-
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = async () => {
                     const blob = new Blob(recordedChunks, { type: mimeType });
                     if (recObjectURL) URL.revokeObjectURL(recObjectURL);
                     recObjectURL = URL.createObjectURL(blob);
-                    
                     document.getElementById('rec-waveform-wrapper').style.display = 'block';
                     document.getElementById('recControls').style.display = 'flex';
-                    
                     await recWavesurfer.load(recObjectURL);
                     updateRecPlayBtnUI();
                     stream.getTracks().forEach(track => track.stop());
                 };
 
                 const region = wsRegions.getRegions()[0];
-                if (region) wavesurfer.setTime(region.start);
-                
+                const startPos = region ? region.start : wavesurfer.getCurrentTime();
+                wavesurfer.setTime(startPos);
+                lastRecStartPos = startPos; // 同期再生用に開始位置を記録
+
                 await runCountdown();
                 
                 mediaRecorder.start();
@@ -619,12 +609,17 @@
         }
     }
 
+    // 同期再生
     function playRecording() {
         if (!recWavesurfer) return;
         if (recWavesurfer.isPlaying()) {
             recWavesurfer.pause();
+            wavesurfer.pause();
         } else {
+            // 曲を録音時の開始位置に戻して同時再生
+            wavesurfer.setTime(lastRecStartPos);
             recWavesurfer.play();
+            wavesurfer.play();
         }
         updateRecPlayBtnUI();
     }
@@ -857,18 +852,23 @@
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
         });
 
-        // 録音波形での各イベント設定
+        // 録音波形のイベント
         recWavesurfer.on('play', updateRecPlayBtnUI);
         recWavesurfer.on('pause', updateRecPlayBtnUI);
-        recWavesurfer.on('finish', updateRecPlayBtnUI);
+        recWavesurfer.on('finish', () => {
+            wavesurfer.pause(); // 録音が終わったら曲も止める
+            updateRecPlayBtnUI();
+        });
 
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
 
         document.getElementById('playBtn').onclick = async () => {
             initAudioContext();
-            if (wavesurfer.isPlaying()) wavesurfer.pause();
-            else {
+            if (wavesurfer.isPlaying()) {
+                wavesurfer.pause();
+                if (recWavesurfer.isPlaying()) recWavesurfer.pause(); // 録音再生中ならそれも止める
+            } else {
                 const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
                 if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
                 await runCountdown(); 
@@ -878,7 +878,11 @@
         };
 
         wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
-        wavesurfer.on('pause', () => document.getElementById('playIcon').innerText = 'play_arrow');
+        wavesurfer.on('pause', () => {
+            document.getElementById('playIcon').innerText = 'play_arrow';
+            if (recWavesurfer.isPlaying()) recWavesurfer.pause(); // メインが止まったら録音も止める
+        });
+
         wavesurfer.on('timeupdate', t => {
             document.getElementById('currentTime').innerText = fmt(t);
             const r = wsRegions.getRegions()[0];
