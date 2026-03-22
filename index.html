@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player v1.0.8</title>
+    <title>AMS Practice Player v1.0.9</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.0.8" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.0.8">
+    <link rel="icon" href="icon.png?v=1.0.9" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.0.9">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -405,7 +405,7 @@
     let mediaRecorder, recordedChunks = [];
     let isRecording = false;
     let recObjectURL = null;
-    let lastRecStartPos = 0; // 録音を開始した時の曲の秒数を保持
+    let lastRecStartPos = 0;
 
     function changeLanguage() {
         const lang = document.getElementById('langSelect').value || 'ja';
@@ -563,7 +563,7 @@
         overlay.style.display = 'none'; return true;
     }
 
-    // --- 録音機能 (同期再生対応) ---
+    // --- 録音機能 (音量安定化のためのマイク制約追加) ---
     async function toggleRecording() {
         initAudioContext();
         if (isRecording) {
@@ -574,7 +574,15 @@
             document.getElementById('recIcon').innerText = 'mic';
         } else {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // 音量不安定を解消するための制約(AGC/ノイズ抑制をオフ)
+                const constraints = { 
+                    audio: {
+                        autoGainControl: false,
+                        echoCancellation: false,
+                        noiseSuppression: false
+                    }
+                };
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
                 mediaRecorder = new MediaRecorder(stream, { mimeType });
                 recordedChunks = [];
@@ -593,7 +601,7 @@
                 const region = wsRegions.getRegions()[0];
                 const startPos = region ? region.start : wavesurfer.getCurrentTime();
                 wavesurfer.setTime(startPos);
-                lastRecStartPos = startPos; // 同期再生用に開始位置を記録
+                lastRecStartPos = startPos;
 
                 await runCountdown();
                 
@@ -609,14 +617,12 @@
         }
     }
 
-    // 同期再生
     function playRecording() {
         if (!recWavesurfer) return;
         if (recWavesurfer.isPlaying()) {
             recWavesurfer.pause();
             wavesurfer.pause();
         } else {
-            // 曲を録音時の開始位置に戻して同時再生
             wavesurfer.setTime(lastRecStartPos);
             recWavesurfer.play();
             wavesurfer.play();
@@ -852,11 +858,10 @@
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
         });
 
-        // 録音波形のイベント
         recWavesurfer.on('play', updateRecPlayBtnUI);
         recWavesurfer.on('pause', updateRecPlayBtnUI);
         recWavesurfer.on('finish', () => {
-            wavesurfer.pause(); // 録音が終わったら曲も止める
+            wavesurfer.pause();
             updateRecPlayBtnUI();
         });
 
@@ -867,7 +872,7 @@
             initAudioContext();
             if (wavesurfer.isPlaying()) {
                 wavesurfer.pause();
-                if (recWavesurfer.isPlaying()) recWavesurfer.pause(); // 録音再生中ならそれも止める
+                if (recWavesurfer.isPlaying()) recWavesurfer.pause();
             } else {
                 const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
                 if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
@@ -880,7 +885,7 @@
         wavesurfer.on('play', () => document.getElementById('playIcon').innerText = 'pause');
         wavesurfer.on('pause', () => {
             document.getElementById('playIcon').innerText = 'play_arrow';
-            if (recWavesurfer.isPlaying()) recWavesurfer.pause(); // メインが止まったら録音も止める
+            if (recWavesurfer.isPlaying()) recWavesurfer.pause();
         });
 
         wavesurfer.on('timeupdate', t => {
