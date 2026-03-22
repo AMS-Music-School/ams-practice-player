@@ -24,6 +24,7 @@
             --text-dim: #999999;
             --border-color: #333333;
             --header-height: 60px;
+            --accent-red: #ff5555;
         }
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -82,6 +83,13 @@
         }
         .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); }
         .play-main { background: var(--primary-color); color: #121212 !important; width: 60px; height: 60px; border: none; }
+
+        /* Recording specific styles */
+        .btn-rec { color: var(--accent-red); border-color: var(--accent-red); }
+        .btn-rec.recording { background: var(--accent-red); color: white; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
+        #downloadRecBtn { display: none; background: #222; color: var(--accent-red); border: 1px solid var(--accent-red); border-radius: 20px; padding: 5px 15px; font-size: 0.7rem; cursor: pointer; align-items: center; gap: 5px; }
 
         .custom-file-upload {
             display: block; width: 100%; padding: 12px; border: 2px dashed var(--border-color); 
@@ -256,6 +264,7 @@
         <div class="waveform-label">
             <span id="loadStatus">READY</span>
             <div style="display:flex; align-items:center; gap:8px;">
+                <button id="downloadRecBtn" onclick="downloadRecording()"><span class="material-icons" style="font-size:14px;">download</span> SAVE REC</button>
                 <span class="material-icons" style="font-size:18px;">zoom_in</span>
                 <input type="range" id="zoomSlider" min="0" max="500" value="100" style="width:80px;">
                 <button class="reset-btn" id="resetZoomBtn">FIT</button>
@@ -286,6 +295,9 @@
             <button class="btn-ctrl" onclick="wavesurfer.skip(-5)"><span class="material-icons">replay_5</span></button>
             <button class="btn-ctrl play-main" id="playBtn"><span class="material-icons" id="playIcon" style="font-size:35px;">play_arrow</span></button>
             <button class="btn-ctrl" onclick="wavesurfer.skip(5)"><span class="material-icons">forward_5</span></button>
+            <button class="btn-ctrl btn-rec" id="recBtn" onclick="toggleRecording()">
+                <span class="material-icons">fiber_manual_record</span>
+            </button>
             <button class="btn-ctrl" id="speedUpToggleBtn" onclick="toggleFeature('speedup')">
                 <span class="material-icons">speed</span>
             </button>
@@ -356,7 +368,7 @@
             close: "閉じる", fit: "全体表示", clear: "範囲解除", ready: "準備完了", analyzing: "解析中...",
             setStart: "開始位置", setEnd: "終了位置", loopOff: "ループ OFF", loopOn: "ループ ON",
             fileSelect: "ファイルを選択", saveLoop: "ループ保存",
-            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li><li>ループ保存: 現在の範囲を保存してリスト化できます。</li></ul>",
+            guideFileContent: "<b>【Audio File Mode】ガイド</b><ul><li>ファイル選択: 音楽ファイルを選択してください。</li><li>スピード: 再生速度を変更できます。</li><li>ループ: 波形ドラッグで範囲を指定できます。</li><li>録音: マイクボタンで練習を録音・保存できます。</li></ul>",
             guideYTContent: "<b>【YouTube Mode】ガイド</b><ul><li>読み込み: URLを貼り付けてLOADを押します。</li><li>ループ: SET START/ENDで区間を決めます。</li><li>SAVE: YouTube動画ごとに複数のループを保存できます。</li></ul>"
         },
         en: {
@@ -364,7 +376,7 @@
             close: "Close", fit: "FIT", clear: "Clear Loop", ready: "READY", analyzing: "ANALYZING...",
             setStart: "SET START", setEnd: "SET END", loopOff: "LOOP OFF", loopOn: "LOOP ON",
             fileSelect: "Select Audio File", saveLoop: "Save Loop",
-            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Save: Store loop ranges for quick access.</li></ul>",
+            guideFileContent: "<b>【Audio File Mode】Guide</b><ul><li>Select: Choose an audio file from your device.</li><li>Speed: Adjust playback speed using slider.</li><li>Loop: Drag on waveform to set loop range.</li><li>Record: Use the MIC button to record and save your practice.</li></ul>",
             guideYTContent: "<b>【YouTube Mode】Guide</b><ul><li>Load: Paste URL and press LOAD.</li><li>Loop: Press SET START/END to define range.</li><li>SAVE: Save multiple loop points for each video.</li></ul>"
         }
     };
@@ -394,7 +406,7 @@
         if (loadS.innerText.includes("READY") || loadS.innerText.includes("準備")) loadS.innerText = t.ready;
         
         const loopB = document.getElementById('toggleLoopBtn');
-        loopB.innerText = isLooping ? t.loopOn : t.loopOff;
+        if(loopB) loopB.innerText = isLooping ? t.loopOn : t.loopOff;
     }
 
     const userLang = (navigator.language || navigator.userLanguage).substring(0, 2);
@@ -423,8 +435,11 @@
     let audioCtx, firstSoundTime = 0, originalBpm = 120;
     let currentObjectURL = null, currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
+    
+    // Recording variables
+    let mediaRecorder, recordedChunks = [];
+    let isRecording = false, recordedBlob = null;
 
-    // どのブラウザでも共通して使用できるAudioContext初期化関数
     function initAudioContext() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -443,6 +458,54 @@
             isSpeedUpEnabled = !isSpeedUpEnabled;
             document.getElementById('speedUpToggleBtn').classList.toggle('active', isSpeedUpEnabled);
         }
+    }
+
+    // Recording Logic
+    async function toggleRecording() {
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                recordedChunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    recordedBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    document.getElementById('downloadRecBtn').style.display = 'flex';
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                document.getElementById('recBtn').classList.add('recording');
+                document.getElementById('downloadRecBtn').style.display = 'none';
+            } catch (err) {
+                alert("マイクの使用が許可されていないか、利用できません。");
+                console.error(err);
+            }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            document.getElementById('recBtn').classList.remove('recording');
+        }
+    }
+
+    function downloadRecording() {
+        if (!recordedBlob) return;
+        const url = URL.createObjectURL(recordedBlob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `practice_rec_${new Date().getTime()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 100);
     }
 
     function switchMode(mode) {
@@ -631,8 +694,10 @@
         isLooping = !isLooping; 
         const lang = document.getElementById('langSelect').value;
         const b = document.getElementById('toggleLoopBtn'); 
-        b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff; 
-        b.classList.toggle('active', isLooping); 
+        if(b) {
+            b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff; 
+            b.classList.toggle('active', isLooping); 
+        }
     };
 
     function saveLoop(mode) {
@@ -662,6 +727,7 @@
         const container = mode === 'file' ? document.getElementById('loopListFile') : document.getElementById('loopListYT');
         const key = mode === 'file' ? currentFileName : currentYTId;
         const storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
+        if(!container) return;
         container.innerHTML = "";
         if (!key) return;
         let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
@@ -708,7 +774,6 @@
             barWidth: 2, 
             normalize: true, 
             cursorColor: '#fff',
-            // Chrome対策: 明示的にmediaを指定せず、ユーザー操作で再生させる
             interact: true,
             fillParent: true
         });
@@ -737,8 +802,6 @@
                 reader.onload = async (event) => {
                     const blob = new Blob([event.target.result], { type: file.type });
                     currentObjectURL = URL.createObjectURL(blob);
-                    
-                    // Chrome対策: ロード直後にAudioContextの状態をチェックしないよう、ロードのみ行う
                     wavesurfer.load(currentObjectURL);
                     analyzeAudio(blob);
                     renderLoopList('file');
@@ -779,19 +842,13 @@
         document.getElementById('pitch').oninput = applySettings;
 
         document.getElementById('playBtn').onclick = async () => {
-            // Chrome/Safari共通: ユーザーのタップ内でContextを再開
             initAudioContext();
-            
             if (wavesurfer.isPlaying()) {
                 wavesurfer.pause();
             } else {
                 const current = wavesurfer.getCurrentTime(), region = wsRegions.getRegions()[0];
                 if (isCountEnabled && region && (current < region.start || current >= region.end)) wavesurfer.setTime(region.start);
-                
-                // カウントダウン中もAudioContextが生きている必要がある
                 await runCountdown(); 
-                
-                // 再生直前に設定を再適用（ブラウザによるリセット防止）
                 applySettings();
                 wavesurfer.play();
             }
