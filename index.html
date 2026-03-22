@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player v1.1.3</title>
+    <title>AMS Practice Player v1.1.4</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.1.3" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.1.3">
+    <link rel="icon" href="icon.png?v=1.1.4" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.1.4">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -169,15 +169,24 @@
         #toggleLoopBtn { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border-color); transition: all 0.3s ease; }
         #toggleLoopBtn.active { background: var(--primary-color); color: #121212; border: 1px solid var(--primary-color); font-weight: bold; }
         
-        .loop-list-container { margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; max-height: 200px; overflow-y: auto; }
-        .loop-item { 
-            background: #252525; padding: 8px 12px; border-radius: 8px; margin-bottom: 6px; 
-            display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;
+        /* ループバッジリストのスタイル */
+        .loop-list-container { 
+            margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; 
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start;
         }
-        .loop-info { flex-grow: 1; cursor: pointer; }
-        .loop-name { color: var(--primary-color); font-weight: bold; margin-right: 10px; font-size: 1rem; }
-        .loop-times { color: var(--text-dim); font-size: 0.7rem; }
-        .loop-delete { color: #ff5555; cursor: pointer; padding: 5px; }
+        .loop-badge {
+            background: #252525; padding: 6px 10px; border-radius: 20px;
+            display: flex; align-items: center; gap: 6px; border: 1px solid var(--border-color);
+            cursor: pointer; position: relative; transition: all 0.2s;
+        }
+        .loop-badge:active { background: #333; transform: scale(0.95); }
+        .loop-badge .badge-num { 
+            color: var(--primary-color); font-weight: bold; font-size: 1.2rem; line-height: 1;
+        }
+        .loop-badge .badge-del { 
+            color: #ff5555; font-size: 16px; display: flex; align-items: center; 
+            padding: 2px; border-radius: 50%;
+        }
 
         .history-card {
             background: #252525; border: 1px solid var(--border-color); border-radius: 6px;
@@ -651,6 +660,7 @@
         }
     }
 
+    // --- YouTube API ---
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
@@ -759,17 +769,15 @@
             if (start >= end) return alert("範囲が不正です");
         }
         
-        // デフォルト名を削除し、保存時に名前を聞くUIは維持
-        const name = prompt("ループ名（空欄でもOK）", "");
         let storageKey = mode === 'file' ? 'ams_loops' : 'ams_yt_loops';
         let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
         if (!allLoops[key]) allLoops[key] = [];
-        allLoops[key].push({ name: name || "", start, end });
+        allLoops[key].push({ start, end });
         localStorage.setItem(storageKey, JSON.stringify(allLoops));
         renderLoopList(mode);
     }
 
-    // --- ①②③といった丸囲み文字に変換するヘルパー ---
+    // 丸囲み数字への変換ヘルパー
     function getCircleNum(n) {
         const circles = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩","⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑳"];
         return circles[n-1] || `(${n})`;
@@ -783,22 +791,15 @@
         if (!key) return;
         let allLoops = JSON.parse(localStorage.getItem(storageKey) || "{}");
         (allLoops[key] || []).forEach((loop, index) => {
-            const div = document.createElement('div');
-            div.className = 'loop-item';
+            const badge = document.createElement('div');
+            badge.className = 'loop-badge';
+            badge.onclick = () => applyStoredLoop(mode, loop.start, loop.end);
             
-            // 保存した順番の数字（①、②...）を取得
-            const numLabel = getCircleNum(index + 1);
-            // ユーザーが名前を付けていればそれを、なければ空文字を表示
-            const displayName = loop.name ? ` ${loop.name}` : "";
-
-            div.innerHTML = `
-                <div class="loop-info" onclick="applyStoredLoop('${mode}', ${loop.start}, ${loop.end})">
-                    <span class="loop-name">${numLabel}${displayName}</span>
-                    <span class="loop-times">${fmt(loop.start)} - ${fmt(loop.end)}</span>
-                </div>
-                <span class="material-icons loop-delete" onclick="deleteLoop('${mode}', ${index})">delete</span>
+            badge.innerHTML = `
+                <span class="badge-num">${getCircleNum(index + 1)}</span>
+                <span class="material-icons badge-del" onclick="event.stopPropagation(); deleteLoop('${mode}', ${index})">cancel</span>
             `;
-            container.appendChild(div);
+            container.appendChild(badge);
         });
     }
 
