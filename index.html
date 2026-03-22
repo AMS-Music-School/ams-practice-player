@@ -58,7 +58,7 @@
         #rec-waveform-wrapper {
             min-height: 80px;
             margin-top: 10px;
-            display: none; /* 録音がある時だけ表示 */
+            display: none; 
             border-color: var(--recording-red);
         }
 
@@ -82,7 +82,7 @@
         .val-display { color: var(--primary-color); font-weight: bold; min-width: 70px; text-align: right; font-size: 0.95rem; }
         
         .transport-controls { 
-            display: flex; justify-content: center; align-items: center; gap: 10px; margin: 15px 0; 
+            display: flex; justify: center; align-items: center; gap: 10px; margin: 15px 0; 
         }
         .btn-ctrl { 
             background: var(--panel-bg); color: var(--text-dim); border: 1px solid var(--border-color); 
@@ -92,7 +92,6 @@
         .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); }
         .play-main { background: var(--primary-color); color: #121212 !important; width: 60px; height: 60px; border: none; }
         
-        /* 録音ボタン専用スタイル */
         .rec-btn { color: var(--recording-red); border-color: #442222; }
         .rec-btn.recording { background: var(--recording-red); color: white; animation: blink 1s infinite; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
@@ -149,9 +148,6 @@
         .mode-tabs { display: flex; justify-content: center; gap: 4px; margin-bottom: 15px; background: var(--panel-bg); padding: 4px; border-radius: 10px; border: 1px solid var(--border-color); }
         .tab-btn { background: transparent; border: none; color: var(--text-dim); padding: 8px; cursor: pointer; border-radius: 6px; font-size: 0.75rem; flex: 1; transition: all 0.3s ease; }
         .tab-btn.active { background: var(--primary-color); color: #121212; font-weight: bold; }
-
-        .content-section { display: none; }
-        .content-section.active { display: block; }
 
         .clear-btn-container { margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; }
         .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
@@ -236,7 +232,7 @@
             <span id="loadStatus">READY</span>
             <div style="display:flex; align-items:center; gap:8px;">
                 <span class="material-icons" style="font-size:18px;">zoom_in</span>
-                <input type="range" id="zoomSlider" min="0" max="500" value="100" style="width:80px;">
+                <input type="range" id="zoomSlider" min="0" max="500" value="0" style="width:80px;">
                 <button class="reset-btn" id="resetZoomBtn">FIT</button>
             </div>
             <span class="time-display"><span id="currentTime">00:00</span> / <span id="totalTime">00:00</span></span>
@@ -371,9 +367,9 @@
     let currentObjectURL = null, currentFileName = "", currentYTId = "";
     let isCountEnabled = true, isSpeedUpEnabled = false;
 
-    // 録音用変数
     let mediaRecorder, recordedChunks = [], isRecording = false;
 
+    // 音声コンテキストの初期化（重要：タップ時に必ず呼ぶ）
     function initAudioContext() {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -395,7 +391,6 @@
         if(mode === 'file' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
     }
 
-    // 録音機能の実装
     async function toggleRecording() {
         initAudioContext();
         if (isRecording) {
@@ -418,45 +413,25 @@
                     document.getElementById('rec-waveform-wrapper').style.display = 'block';
                     document.getElementById('recControls').style.display = 'flex';
                     recWavesurfer.load(url);
-                    // ストリーム停止
                     stream.getTracks().forEach(track => track.stop());
                 };
 
-                // ループ範囲がある場合はその開始位置へ
                 const region = wsRegions.getRegions()[0];
                 if (region) wavesurfer.setTime(region.start);
 
-                // カウントダウン後に録音開始
                 await runCountdown();
                 mediaRecorder.start();
                 wavesurfer.play();
                 isRecording = true;
                 document.getElementById('recBtn').classList.add('recording');
                 document.getElementById('recIcon').innerText = 'stop';
-            } catch (err) {
-                alert("マイクの使用が許可されていないか、利用できません。");
-            }
+            } catch (err) { alert("マイクが許可されていません。"); }
         }
     }
 
-    function playRecording() {
-        if (!recWavesurfer) return;
-        if (recWavesurfer.isPlaying()) {
-            recWavesurfer.pause();
-        } else {
-            recWavesurfer.play();
-        }
-    }
+    function playRecording() { if (!recWavesurfer) return; recWavesurfer.playPause(); }
+    function deleteRecording() { if (confirm("削除しますか？")) { document.getElementById('rec-waveform-wrapper').style.display = 'none'; document.getElementById('recControls').style.display = 'none'; recWavesurfer.empty(); } }
 
-    function deleteRecording() {
-        if (confirm("録音データを削除しますか？")) {
-            document.getElementById('rec-waveform-wrapper').style.display = 'none';
-            document.getElementById('recControls').style.display = 'none';
-            recWavesurfer.empty();
-        }
-    }
-
-    // 既存機能
     async function analyzeAudio(blob) {
         const lang = document.getElementById('langSelect').value;
         const statusEl = document.getElementById('loadStatus');
@@ -472,7 +447,7 @@
             const bpm = detectBPM(audioBuffer);
             if (bpm > 0) { originalBpm = Math.round(bpm); updateBpmDisplay(); }
             statusEl.innerText = translations[lang].ready;
-            if(wavesurfer && wavesurfer.isReady) wavesurfer.setTime(firstSoundTime);
+            if(wavesurfer) wavesurfer.setTime(firstSoundTime);
         } catch (e) { statusEl.innerText = translations[lang].ready; } finally { tempCtx.close(); }
     }
 
@@ -512,14 +487,11 @@
         const interval = 60000 / (originalBpm * speed);
         const overlay = document.getElementById('countdown-overlay');
         overlay.style.display = 'block';
-        for (let i = 1; i <= 4; i++) {
-            overlay.innerText = i; playBeep(i === 4);
-            await new Promise(r => setTimeout(r, interval));
-        }
+        for (let i = 1; i <= 4; i++) { overlay.innerText = i; playBeep(i === 4); await new Promise(r => setTimeout(r, interval)); }
         overlay.style.display = 'none'; return true;
     }
 
-    // YouTube 関連
+    // YouTube
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
     function onYouTubeIframeAPIReady() {}
@@ -555,7 +527,6 @@
 
     window.toggleLoop = () => { isLooping = !isLooping; const lang = document.getElementById('langSelect').value; const b = document.getElementById('toggleLoopBtn'); b.innerText = isLooping ? translations[lang].loopOn : translations[lang].loopOff; b.classList.toggle('active', isLooping); };
 
-    // 保存関連
     function saveLoop(mode) {
         let s, e, key;
         if (mode === 'file') { const r = wsRegions.getRegions()[0]; if(!r) return; s=r.start; e=r.end; key=currentFileName; }
@@ -611,7 +582,6 @@
 
     window.clearYTHistory = () => { localStorage.removeItem('ams_yt_history'); renderYTHistory(); };
 
-    // 言語・メニュー
     function changeLanguage() {
         const l = document.getElementById('langSelect').value; const t = translations[l];
         document.getElementById('langTitle').innerText = t.langTitle;
@@ -630,29 +600,40 @@
     function showGuide(t) { toggleMenu(false); document.getElementById('guideModal' + (t==='file'?'File':'YT')).style.display = 'block'; document.getElementById('menuOverlay').style.display = 'block'; }
     function closeModals() { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); document.getElementById('menuOverlay').style.display = 'none'; }
 
-    // アプリ初期化
     function startApp() {
-        wavesurfer = WaveSurfer.create({ container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff', interact: true });
-        recWavesurfer = WaveSurfer.create({ container: '#rec-waveform', waveColor: '#522', progressColor: '#f44', height: 80, barWidth: 2 });
+        // WaveSurferの初期化
+        wavesurfer = WaveSurfer.create({ 
+            container: '#waveform', 
+            waveColor: '#333', 
+            progressColor: '#d4a373', 
+            height: 120, 
+            barWidth: 2, 
+            normalize: true, 
+            cursorColor: '#fff', 
+            interact: true 
+        });
         
+        recWavesurfer = WaveSurfer.create({ container: '#rec-waveform', waveColor: '#522', progressColor: '#f44', height: 80, barWidth: 2 });
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
         wsRegions.enableDragSelection({ color: 'rgba(212, 163, 115, 0.2)' });
         wsRegions.on('region-created', r => { if(wsRegions.getRegions().length > 1) wsRegions.getRegions()[0].remove(); wavesurfer.setTime(r.start); });
 
-        // ファイル読込修正：確実に発火するように
+        // ファイル読込：CORS問題を完全に回避するロジック
         document.getElementById('audioFile').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if(file) {
+                initAudioContext(); // タップ直後にコンテキストを活性化
                 currentFileName = file.name;
                 document.getElementById('fileSelectBtn').innerText = currentFileName;
                 wsRegions.clearRegions();
                 if(currentObjectURL) URL.revokeObjectURL(currentObjectURL);
                 
-                // Chrome/SafariでBlob読み込みを確実にするため一度ArrayBufferへ
                 const reader = new FileReader();
                 reader.onload = async (ev) => {
                     const blob = new Blob([ev.target.result], { type: file.type });
                     currentObjectURL = URL.createObjectURL(blob);
+                    
+                    // WaveSurferに直接Blobを読み込ませる
                     wavesurfer.load(currentObjectURL);
                     analyzeAudio(blob);
                     renderLoopList('file');
@@ -661,7 +642,6 @@
             }
         });
 
-        // 再生ボタン
         document.getElementById('playBtn').onclick = async () => {
             initAudioContext();
             if (wavesurfer.isPlaying()) {
@@ -697,11 +677,10 @@
             if(r && t >= r.end) {
                 wavesurfer.setTime(r.start);
                 if (isSpeedUpEnabled) { const s = document.getElementById('speed'); s.value = Math.min(1.5, parseFloat(s.value) + 0.05).toFixed(2); applySet(); }
-                if (isRecording) toggleRecording(); // 録音中にループ端に来たら自動停止
+                if (isRecording) toggleRecording();
             }
         });
 
-        // 録音再生アイコン同期
         recWavesurfer.on('play', () => { const l = document.getElementById('langSelect').value; document.getElementById('playRecBtn').innerHTML = `<span class="material-icons">stop_circle</span> ${translations[l].recStop}`; });
         recWavesurfer.on('pause', () => { const l = document.getElementById('langSelect').value; document.getElementById('playRecBtn').innerHTML = `<span class="material-icons">play_circle</span> ${translations[l].recPlay}`; });
         recWavesurfer.on('finish', () => { const l = document.getElementById('langSelect').value; document.getElementById('playRecBtn').innerHTML = `<span class="material-icons">play_circle</span> ${translations[l].recPlay}`; });
