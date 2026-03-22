@@ -55,7 +55,8 @@
             min-height: 120px;
         }
         
-        #rec-waveform-wrapper { min-height: 80px; margin-top: 10px; display: none; border: 2px solid var(--recording-red); }
+        /* 録音波形の高さをコンパクト化 */
+        #rec-waveform-wrapper { min-height: 60px; margin-top: 8px; display: none; border: 1px solid var(--recording-red); }
 
         .waveform-label { 
             font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px; 
@@ -68,6 +69,13 @@
             background: var(--panel-bg); padding: 15px; border-radius: 12px; 
             border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px;
             margin-bottom: 15px;
+        }
+
+        /* 録音パネル専用のスリム設定 */
+        .panel-rec {
+            padding: 10px 15px;
+            gap: 8px;
+            border-color: rgba(255, 68, 68, 0.4);
         }
 
         .row { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -87,7 +95,7 @@
         .btn-ctrl.active { color: var(--primary-color); border-color: var(--primary-color); }
         .play-main { background: var(--primary-color); color: #121212 !important; width: 60px; height: 60px; border: none; }
         
-        .rec-btn { color: var(--recording-red); border-color: #442222; }
+        .rec-btn { color: var(--recording-red); border-color: #442222; width: 40px; height: 40px; }
         .rec-btn.recording { background: var(--recording-red); color: white; animation: blink 1s infinite; }
         @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
@@ -157,6 +165,9 @@
         .clear-btn-container { margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; }
         .clear-btn-ja { background: #333; border: none; color: var(--text-main); padding: 6px 15px; border-radius: 20px; font-size: 0.75rem; cursor: pointer; display: flex; align-items: center; gap: 5px; }
 
+        /* 録音用ボタンの微調整 */
+        .rec-action-btn { padding: 4px 12px; font-size: 0.7rem; }
+
         .guide-box-inner { font-size: 0.8rem; color: var(--text-dim); line-height: 1.6; }
         .guide-box-inner b { color: var(--primary-color); font-size: 1rem; display: block; margin-bottom: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
         .guide-box-inner ul { padding-left: 15px; margin: 0; }
@@ -169,7 +180,6 @@
         #toggleLoopBtn { background: #2a2a2a; color: var(--text-dim); border: 1px solid var(--border-color); transition: all 0.3s ease; }
         #toggleLoopBtn.active { background: var(--primary-color); color: #121212; border: 1px solid var(--primary-color); font-weight: bold; }
         
-        /* ループバッジリストのスタイル */
         .loop-list-container { 
             margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px; 
             display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start;
@@ -308,20 +318,21 @@
             </button>
         </div>
 
-        <div class="panel" style="border-color: var(--recording-red);">
+        <!-- 録音パネルをよりスリムに調整 -->
+        <div class="panel panel-rec">
             <div class="row">
-                <span style="font-size:0.7rem; color:var(--recording-red); font-weight:bold; letter-spacing:1px;">SELF-RECORDING CHECK</span>
+                <span style="font-size:0.65rem; color:var(--recording-red); font-weight:bold; letter-spacing:0.5px;">SELF-RECORDING CHECK</span>
                 <button class="btn-ctrl rec-btn" id="recBtn" onclick="toggleRecording()">
-                    <span class="material-icons" id="recIcon">mic</span>
+                    <span class="material-icons" id="recIcon" style="font-size:20px;">mic</span>
                 </button>
             </div>
             <div id="rec-waveform-wrapper"><div id="rec-waveform"></div></div>
-            <div class="row" id="recControls" style="display:none; justify-content:center; gap:10px; margin-top:10px;">
-                <button class="clear-btn-ja" onclick="playRecording()" id="playRecBtn">
-                    <span class="material-icons">play_circle</span> 録音再生
+            <div class="row" id="recControls" style="display:none; justify-content:center; gap:8px; margin-top:4px;">
+                <button class="clear-btn-ja rec-action-btn" onclick="playRecording()" id="playRecBtn">
+                    <span class="material-icons" style="font-size:14px;">play_circle</span> 録音再生
                 </button>
-                <button class="clear-btn-ja" onclick="deleteRecording()" style="color:#ff5555;">
-                    <span class="material-icons">delete</span> 削除
+                <button class="clear-btn-ja rec-action-btn" onclick="deleteRecording()" style="color:#ff5555;">
+                    <span class="material-icons" style="font-size:14px;">delete</span> 削除
                 </button>
             </div>
         </div>
@@ -449,9 +460,9 @@
         const t = translations[lang] || translations['ja'];
         const btn = document.getElementById('playRecBtn');
         if (recWavesurfer && recWavesurfer.isPlaying()) {
-            btn.innerHTML = `<span class="material-icons">stop_circle</span> ${t.recStop}`;
+            btn.innerHTML = `<span class="material-icons" style="font-size:14px;">stop_circle</span> ${t.recStop}`;
         } else {
-            btn.innerHTML = `<span class="material-icons">play_circle</span> ${t.recPlay}`;
+            btn.innerHTML = `<span class="material-icons" style="font-size:14px;">play_circle</span> ${t.recPlay}`;
         }
     }
 
@@ -660,7 +671,6 @@
         }
     }
 
-    // --- YouTube API ---
     const tag = document.createElement('script'); tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
 
@@ -777,7 +787,6 @@
         renderLoopList(mode);
     }
 
-    // 丸囲み数字への変換ヘルパー
     function getCircleNum(n) {
         const circles = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩","⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑳"];
         return circles[n-1] || `(${n})`;
@@ -833,7 +842,7 @@
             container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff', mediaControls: false
         });
         recWavesurfer = WaveSurfer.create({
-            container: '#rec-waveform', waveColor: '#552222', progressColor: '#ff4444', height: 80, barWidth: 2, normalize: true, cursorColor: '#fff'
+            container: '#rec-waveform', waveColor: '#552222', progressColor: '#ff4444', height: 60, barWidth: 2, normalize: true, cursorColor: '#fff'
         });
         
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
