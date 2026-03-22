@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AMS Practice Player v1.1.1</title>
+    <title>AMS Practice Player v1.1.2</title>
     
     <meta name="apple-mobile-web-app-title" content="AMS Player">
     <meta name="apple-mobile-web-app-capable" content="yes">
     
-    <link rel="icon" href="icon.png?v=1.1.1" type="image/png">
-    <link rel="apple-touch-icon" href="icon.png?v=1.1.1">
+    <link rel="icon" href="icon.png?v=1.1.2" type="image/png">
+    <link rel="apple-touch-icon" href="icon.png?v=1.1.2">
 
     <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
     <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
@@ -467,8 +467,7 @@
     function initAudioContext() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)({
-                latencyHint: 'interactive',
-                sampleRate: 44100,
+                latencyHint: 'interactive'
             });
         }
         if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -568,28 +567,24 @@
         overlay.style.display = 'none'; return true;
     }
 
-    // --- 録音機能 (再生されない問題の修正) ---
+    // --- 【修正済み】録音機能：楽曲再生が止まる問題を解決 ---
     async function toggleRecording() {
         initAudioContext();
         if (isRecording) {
-            mediaRecorder.stop();
+            if (mediaRecorder) mediaRecorder.stop();
             if (wavesurfer.isPlaying()) wavesurfer.pause();
             isRecording = false;
             document.getElementById('recBtn').classList.remove('recording');
             document.getElementById('recIcon').innerText = 'mic';
         } else {
             try {
-                // iOS Safari等のダッキング対策設定
+                // 1. まずマイクストリームを取得（これが楽曲を止めるトリガーになるため最初にやる）
                 const constraints = { 
-                    audio: {
-                        echoCancellation: false,
-                        noiseSuppression: false,
-                        autoGainControl: false
-                    }
+                    audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
                 };
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 
-                // ストリーム開始直後にAudioContextを再開して音出力を確保
+                // 2. マイク取得後にAudioContextを明示的に再開（iOS Safari対策）
                 if (audioCtx) await audioCtx.resume();
                 
                 const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
@@ -608,29 +603,33 @@
                     stream.getTracks().forEach(track => track.stop());
                 };
 
+                // 3. 再生位置のセット
                 const region = wsRegions.getRegions()[0];
                 const startPos = region ? region.start : wavesurfer.getCurrentTime();
                 wavesurfer.setTime(startPos);
                 lastRecStartPos = startPos;
 
+                // 4. カウントダウン（この間もAudioContextは維持されている）
                 await runCountdown();
                 
-                // 録音開始
+                // 5. 録音開始
                 mediaRecorder.start();
                 
-                // 重要: マイク使用により音量が下がらないよう強制設定
+                // 6. 楽曲再生：マイク起動による音量・ミュート制限を強制的に解除して再生
                 const audioEl = wavesurfer.getMediaElement();
                 if (audioEl) {
                     audioEl.muted = false;
                     audioEl.volume = 1.0; 
                 }
                 
-                wavesurfer.play();
+                // AudioContext経由で確実に音が出るようにしてからplay
+                await wavesurfer.play();
+
                 isRecording = true;
                 document.getElementById('recBtn').classList.add('recording');
                 document.getElementById('recIcon').innerText = 'stop';
             } catch (err) { 
-                console.error(err);
+                console.error("録音エラー:", err);
                 alert("マイクの使用を許可してください。"); 
             }
         }
@@ -638,16 +637,12 @@
 
     function playRecording() {
         if (!recWavesurfer || !recWavesurfer.getDuration()) return;
-        
         if (recWavesurfer.isPlaying()) {
             recWavesurfer.pause();
             wavesurfer.pause();
         } else {
-            // 楽曲と録音音源を同期させて再生
             wavesurfer.setTime(lastRecStartPos);
             recWavesurfer.setTime(0);
-            
-            // 同時スタート
             wavesurfer.play();
             recWavesurfer.play();
         }
@@ -824,24 +819,10 @@
 
     function startApp() {
         wavesurfer = WaveSurfer.create({ 
-            container: '#waveform', 
-            waveColor: '#333', 
-            progressColor: '#d4a373', 
-            height: 120, 
-            barWidth: 2, 
-            normalize: true, 
-            cursorColor: '#fff',
-            mediaControls: false
+            container: '#waveform', waveColor: '#333', progressColor: '#d4a373', height: 120, barWidth: 2, normalize: true, cursorColor: '#fff', mediaControls: false
         });
-
         recWavesurfer = WaveSurfer.create({
-            container: '#rec-waveform', 
-            waveColor: '#552222', 
-            progressColor: '#ff4444',
-            height: 80, 
-            barWidth: 2, 
-            normalize: true, 
-            cursorColor: '#fff'
+            container: '#rec-waveform', waveColor: '#552222', progressColor: '#ff4444', height: 80, barWidth: 2, normalize: true, cursorColor: '#fff'
         });
         
         wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
@@ -895,10 +876,7 @@
 
         recWavesurfer.on('play', updateRecPlayBtnUI);
         recWavesurfer.on('pause', updateRecPlayBtnUI);
-        recWavesurfer.on('finish', () => {
-            wavesurfer.pause();
-            updateRecPlayBtnUI();
-        });
+        recWavesurfer.on('finish', () => { wavesurfer.pause(); updateRecPlayBtnUI(); });
 
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
