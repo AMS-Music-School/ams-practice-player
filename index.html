@@ -299,7 +299,6 @@
             </button>
         </div>
 
-        <!-- 録音パネル -->
         <div class="panel" style="border-color: var(--recording-red);">
             <div class="row">
                 <span style="font-size:0.7rem; color:var(--recording-red); font-weight:bold; letter-spacing:1px;">SELF-RECORDING CHECK</span>
@@ -439,6 +438,7 @@
         updateRecPlayBtnUI();
     }
 
+    // 録音再生ボタンのUI更新
     function updateRecPlayBtnUI() {
         const lang = document.getElementById('langSelect').value;
         const t = translations[lang] || translations['ja'];
@@ -568,8 +568,9 @@
         overlay.style.display = 'none'; return true;
     }
 
-    // --- 録音機能の修正 ---
+    // --- 録音機能 (参考コードのロジックを統合) ---
     async function toggleRecording() {
+        initAudioContext();
         if (isRecording) {
             mediaRecorder.stop();
             if (wavesurfer.isPlaying()) wavesurfer.pause();
@@ -579,7 +580,9 @@
         } else {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                // ブラウザ互換性のためのMIMEタイプ
+                const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
                 recordedChunks = [];
 
                 mediaRecorder.ondataavailable = (e) => { 
@@ -587,7 +590,7 @@
                 };
 
                 mediaRecorder.onstop = async () => {
-                    const blob = new Blob(recordedChunks, { type: 'audio/webm' });
+                    const blob = new Blob(recordedChunks, { type: mimeType });
                     if (recObjectURL) URL.revokeObjectURL(recObjectURL);
                     recObjectURL = URL.createObjectURL(blob);
                     
@@ -599,7 +602,6 @@
                     stream.getTracks().forEach(track => track.stop());
                 };
 
-                initAudioContext();
                 const region = wsRegions.getRegions()[0];
                 if (region) wavesurfer.setTime(region.start);
                 
@@ -612,7 +614,7 @@
                 document.getElementById('recIcon').innerText = 'stop';
             } catch (err) { 
                 console.error(err);
-                alert("マイクの使用が許可されていないか、エラーが発生しました。"); 
+                alert("マイクの使用を許可してください。"); 
             }
         }
     }
@@ -855,10 +857,10 @@
             if(firstSoundTime > 0) wavesurfer.setTime(firstSoundTime); 
         });
 
-        // 録音再生終了時の処理
-        recWavesurfer.on('finish', () => {
-            updateRecPlayBtnUI();
-        });
+        // 録音波形での各イベント設定
+        recWavesurfer.on('play', updateRecPlayBtnUI);
+        recWavesurfer.on('pause', updateRecPlayBtnUI);
+        recWavesurfer.on('finish', updateRecPlayBtnUI);
 
         document.getElementById('speed').oninput = applySettings;
         document.getElementById('pitch').oninput = applySettings;
